@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.pocketbuilder.app_wslenytvplayer1792356127271"
+    android:versionCode="80"
+    android:versionName="1.80-solo-tv">
+
+    <!-- Compatibilidad declarada dentro del APK: Android 10 (API 29) o superior.
+         Así el instalador no depende de valores inyectados por la herramienta de
+         empaquetado. -->
+    <uses-sdk
+        android:minSdkVersion="29"
+        android:targetSdkVersion="34" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Para buscar las listas M3U que el usuario ya tiene descargadas en el teléfono. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- Permite que el diagnóstico (pantalla DIAGNÓSTICO) vea qué componentes
+         abren LENY TV, para detectar un icono viejo que apunte a una entrada que
+         ya no existe. No da acceso a los datos de otras apps. -->
+    <queries>
+        <!-- Módulo Leny Películas (APK aparte, sin icono en el cajón) -->
+        <package android:name="com.pocketbuilder.lenypeliculas" />
+        <intent>
+            <action android:name="com.pocketbuilder.lenypeliculas.OPEN" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:label="LENY TV Player"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/LenyTheme">
+
+        <!-- ÚNICA ENTRADA DEL MENÚ (el icono que Android muestra y abre).
+             REVISIÓN 48: los nombres vuelven a la forma con punto delante
+             (".CoverActivity"). En la revisión 47 se escribieron completos y la app
+             dejó de abrir desde el icono ni desde Ajustes → Abrir, porque el
+             empaquetado resolvía el componente con el nombre del paquete delante:
+             «.CoverActivity» se une al paquete del manifiesto y siempre encuentra la
+             clase, mientras que un nombre completo escrito a mano depende de que el
+             empaquetado no cambie nada. AAPT2 no comprueba que la clase exista, así
+             que el error solo aparecía al abrir la app.
+             PORTADA DE BIENVENIDA: su diseño está entero en CoverActivity.java.
+             MÓDULO DE TV: esta portada y las dos pantallas siguientes corren en el
+             proceso principal de la app. -->
+        <activity
+            android:name=".CoverActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- PANTALLA DE CANALES. Se abre desde la portada (botón ENTRAR).
+             Sigue accesible desde fuera (exported) SIN filtro MAIN/LAUNCHER: así un
+             icono guardado por una revisión antigua, que apuntaba a esta pantalla,
+             puede abrirla igualmente, y no aparece un segundo icono en el menú.
+             En la revisión 48 se quitó la redirección a la portada que se añadió en
+             la 47: esta pantalla ahora se muestra tal cual, sin saltos ni bucles. -->
+        <activity
+            android:name=".MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
+        <!-- REPRODUCTOR DE LA TELEVISIÓN. No cambia nada en la 1.59: mismo motor
+             propio (MediaPlayer + DASH) y mismas preferencias ("leny_tv_prefs"). -->
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:theme="@style/LenyTheme.Player"
+            android:supportsPictureInPicture="true"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
+        <!-- ================= MÓDULO DE PELÍCULAS Y SERIES =================
+             Estas pantallas se declaran con android:process=":movies": corren en
+             su PROPIO proceso, separado del de la televisión. Un fallo grave del
+             módulo de películas cierra su proceso, nunca el de la TV, y la
+             televisión se puede seguir usando con normalidad.
+             Cada una tiene su propia lógica, sus preferencias ("leny_movies_prefs")
+             y su propio registro. -->
+
+        <!-- INTERFAZ DE PELÍCULAS Y SERIES. Se abre con el botón PELÍCULAS de la
+             barra superior de la pantalla de TV. -->
+        <activity
+            android:name=".MoviesActivity"
+            android:enabled="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:process=":movies"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
+        <!-- ADMINISTRAR REPOSITORIOS: pegar una dirección, actualizar, activar,
+             desactivar y borrar repositorios de películas y series. -->
+        <activity
+            android:name=".RepoActivity"
+            android:enabled="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:process=":movies"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
+        <!-- REPRODUCTOR DE RESERVA DEL MÓDULO DE PELÍCULAS.
+             Desde la 1.66 una película o un episodio se reproducen con el
+             REPRODUCTOR DE LA TELEVISIÓN (PlayerActivity, más arriba): los mismos
+             botones, el mismo panel de ajustes y la misma estética.
+             Esta pantalla se queda solo como reserva: la app la abre únicamente si
+             el reproductor de la TV no se pudiera abrir, y avisa de ello. No se
+             usa para la reproducción normal. -->
+        <activity
+            android:name="com.pocketbuilder.app_wslenytvplayer1792356127271.movies.MoviesPlayerActivity"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":movies"
+            android:theme="@style/LenyTheme.Player"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
+        <!-- LISTAS XTREAM: servidor, usuario y contraseña. Lee las películas (VOD)
+             de la lista y las organiza en la cuadrícula de PELÍCULAS. -->
+        <activity
+            android:name=".XtreamActivity"
+            android:enabled="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:process=":movies"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
+        <!-- AJUSTES DEL MÓDULO: cabeceras propias, modo de imagen, catálogo de
+             demostración, registro del módulo y tabla de adaptadores. -->
+        <activity
+            android:name="com.pocketbuilder.app_wslenytvplayer1792356127271.movies.MoviesSettingsActivity"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":movies"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+    </application>
+
+</manifest>

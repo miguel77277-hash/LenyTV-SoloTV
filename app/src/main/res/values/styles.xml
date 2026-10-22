@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Tema de LENY TV: sin barras del sistema desde el primer frame. -->
+    <style name="LenyTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">#FF08080F</item>
+        <item name="android:colorBackground">#FF08080F</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+
+    <style name="LenyTheme.Player" parent="LenyTheme">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+</resources>

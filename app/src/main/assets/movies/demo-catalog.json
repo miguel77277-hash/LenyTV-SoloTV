@@ -1,0 +1,105 @@
+{
+  "name": "Catálogo de demostración",
+  "format": "leny-catalog/1",
+  "note": "Solo enlaces públicos de prueba (Apple, Google, Mux, Akamai). Sirve para comprobar la interfaz de películas y series.",
+  "items": [
+    {
+      "id": "demo-bbb",
+      "title": "Big Buck Bunny",
+      "kind": "movie",
+      "poster": "sheet:0",
+      "year": "2008",
+      "rating": 7.6,
+      "genres": ["Animación", "Comedia"],
+      "synopsis": "Cortometraje libre de Blender Foundation. Se usa como enlace de prueba HLS y MP4 para comprobar el reproductor interno.",
+      "sources": [
+        {"label": "HLS", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", "type": "hls"},
+        {"label": "MP4", "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "type": "mp4"}
+      ]
+    },
+    {
+      "id": "demo-elephants",
+      "title": "Elephants Dream",
+      "kind": "movie",
+      "poster": "sheet:1",
+      "year": "2006",
+      "rating": 7.1,
+      "genres": ["Animación", "Ciencia ficción"],
+      "synopsis": "Película libre de Blender Foundation, alojada en un servidor público de pruebas. Comprueba la reproducción directa de un archivo MP4.",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
+    },
+    {
+      "id": "demo-dash",
+      "title": "Envivio DASH",
+      "kind": "movie",
+      "poster": "sheet:2",
+      "year": "2016",
+      "rating": 6.4,
+      "genres": ["Prueba técnica"],
+      "synopsis": "Manifiesto MPEG-DASH de demostración con audio y vídeo en pistas separadas. Comprueba que el reproductor elige el motor DASH.",
+      "sources": [
+        {"label": "DASH", "url": "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd", "type": "dash"},
+        {"label": "DASH BBB", "url": "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd", "type": "dash"}
+      ]
+    },
+    {
+      "id": "demo-serie-1",
+      "title": "Serie de prueba · Apple",
+      "kind": "series",
+      "poster": "sheet:3",
+      "year": "2023",
+      "rating": 8.2,
+      "genres": ["Prueba técnica", "Documental"],
+      "synopsis": "Serie de demostración con dos temporadas. Cada episodio es un enlace de prueba público, para comprobar la lista de temporadas y episodios.",
+      "seasons": [
+        {
+          "number": 1,
+          "title": "Temporada 1",
+          "episodes": [
+            {"number": 1, "title": "BipBop fMP4", "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8"},
+            {"number": 2, "title": "BipBop TS", "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8"}
+          ]
+        },
+        {
+          "number": 2,
+          "title": "Temporada 2",
+          "episodes": [
+            {"number": 1, "title": "Big Buck Bunny 30fps", "url": "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd"},
+            {"number": 2, "title": "Big Buck Bunny HLS", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "demo-serie-2",
+      "title": "Serie de prueba · Mux",
+      "kind": "series",
+      "poster": "sheet:4",
+      "year": "2022",
+      "rating": 7.4,
+      "genres": ["Prueba técnica"],
+      "synopsis": "Serie corta de demostración con episodios en HLS y MP4. Sirve para ver cómo se muestran los episodios de una sola temporada.",
+      "seasons": [
+        {
+          "number": 1,
+          "episodes": [
+            {"number": 1, "title": "Episodio HLS", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+            {"number": 2, "title": "Episodio MP4", "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"},
+            {"number": 3, "title": "Episodio WebM", "url": "https://dl8.webmfiles.org/big-buck-bunny_trailer.webm"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "demo-forbigger",
+      "title": "For Bigger Blazes",
+      "kind": "movie",
+      "poster": "sheet:5",
+      "year": "2014",
+      "rating": 5.9,
+      "genres": ["Prueba técnica", "Acción"],
+      "synopsis": "Vídeo corto de demostración de Google. Comprueba la reproducción de un MP4 pequeño sin apenas espera.",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+    }
+  ]
+}
