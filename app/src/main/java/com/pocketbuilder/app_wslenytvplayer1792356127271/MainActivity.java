@@ -255,7 +255,6 @@ public final class MainActivity extends android.app.Activity {
         // referencia: queda oculto y se abre con el botón de teclado.
         if (urlRow != null) urlRow.setVisibility(View.GONE);
         column.addView(buildSearchRow());
-        RogStyle.applyBackdrop(this, column);
         column.addView(buildBody(), new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
         column.addView(buildStatusBar());
@@ -660,7 +659,8 @@ public final class MainActivity extends android.app.Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT));
 
         FrameLayout content = new FrameLayout(this);
-        content.setBackgroundColor(Ui.BG);
+        // Fondo Lenny en sillón en la zona de canales (no en categorías).
+        RogStyle.applyBackdrop(this, content);
         contentArea = content;
 
         channelAdapter = new RogChannelAdapter(this, shown);
@@ -1452,6 +1452,24 @@ public final class MainActivity extends android.app.Activity {
      * Usa la misma lectura que una lista sola (caché, archivo, Net.loadList)
      * para no perder cabeceras, ClearKey ni URLs relativas.
      */
+    /** Nombres que en realidad son archivos de manifiesto/segmento, no títulos de canal. */
+    private static boolean isWeakChannelName(String name) {
+        if (name == null) return true;
+        String n = name.trim().toLowerCase(java.util.Locale.US);
+        if (n.length() == 0) return true;
+        if (n.endsWith(".mpd") || n.endsWith(".m3u8") || n.endsWith(".m3u")
+                || n.endsWith(".ts") || n.endsWith(".mp4") || n.endsWith(".m4s")) {
+            return true;
+        }
+        if (n.equals("index") || n.startsWith("index.")
+                || n.equals("cenc") || n.startsWith("cenc.")
+                || n.equals("manifest") || n.startsWith("manifest.")
+                || n.equals("playlist") || n.startsWith("playlist.")) {
+            return true;
+        }
+        return false;
+    }
+
     private void loadMergedLists(final java.util.ArrayList<PlaylistStore.Playlist> actives,
                                  final boolean forceNetwork) {
         final int token = ++loadToken;
@@ -1519,12 +1537,22 @@ public final class MainActivity extends android.app.Activity {
                         continue;
                     }
                     int before = merged.size();
+                    int skippedWeak = 0;
                     for (int c = 0; c < parsed.channels.size(); c++) {
                         Channel ch = parsed.channels.get(c);
-                        // Conservar tal cual (URL, license ClearKey, headers del canal)
+                        // Sin título real (cenc.mpd / index.m3u8): suele ser basura de un
+                        // manifiesto, no un canal de la lista IPTV.
+                        if (isWeakChannelName(ch.name)) {
+                            skippedWeak++;
+                            continue;
+                        }
                         merged.add(ch);
                     }
                     pl.channels = parsed.channels.size();
+                    if (skippedWeak > 0) {
+                        Diag.add("Fusión · " + pl.name + ": omitidos " + skippedWeak
+                                + " sin nombre de canal (mpd/m3u8)");
+                    }
                     pl.updated = System.currentTimeMillis();
                     try { PlaylistStore.update(MainActivity.this, pl); } catch (Throwable ignored) {}
                     Diag.add("Fusión · " + pl.name + ": +" + (merged.size() - before)
@@ -1732,7 +1760,18 @@ public final class MainActivity extends android.app.Activity {
     private void setChannels(ArrayList<Channel> list, PlaylistStore.Playlist pl, boolean mediaPlaylist,
                              String emptyReason) {
         all.clear();
-        all.addAll(list);
+        if (list != null) {
+            if (mediaPlaylist) {
+                all.addAll(list);
+            } else {
+                for (int i = 0; i < list.size(); i++) {
+                    Channel ch = list.get(i);
+                    if (ch == null) continue;
+                    if (isWeakChannelName(ch.name)) continue;
+                    all.add(ch);
+                }
+            }
+        }
         boolean empty = all.isEmpty();
 
         // El motivo se decide ANTES de refrescar la pantalla: así el cartel de

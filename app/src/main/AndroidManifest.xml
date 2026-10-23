@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.pocketbuilder.app_wslenytvplayer1792356127271"
-    android:versionCode="81"
-    android:versionName="1.81-merge-bg">
+    android:versionCode="82"
+    android:versionName="1.82-bg-names">
 
     <!-- Compatibilidad declarada dentro del APK: Android 10 (API 29) o superior.
          Así el instalador no depende de valores inyectados por la herramienta de
