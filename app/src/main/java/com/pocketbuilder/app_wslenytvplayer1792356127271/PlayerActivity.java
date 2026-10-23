@@ -61,6 +61,9 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
      * use las del canal y no las generales.
      */
     static final String EXTRA_HEADERS = "headers";
+    static final String EXTRA_LICENSE_TYPE = "licenseType";
+    static final String EXTRA_LICENSE_KEY = "licenseKey";
+    static final String EXTRA_LICENSE_STREAM_HEADERS = "licenseStreamHeaders";
     static final String MODE_LIST = "list";
     static final String MODE_SINGLE = "single";
 
@@ -227,9 +230,15 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         // El canal pedido se abre de inmediato. La lista completa se lee después,
         // en segundo plano: una lista muy grande ya no puede congelar la pantalla
         // (antes se leía aquí mismo, en el hilo principal).
+        String licType = intent.getStringExtra(EXTRA_LICENSE_TYPE);
+        String licKey = intent.getStringExtra(EXTRA_LICENSE_KEY);
+        String licStream = intent.getStringExtra(EXTRA_LICENSE_STREAM_HEADERS);
         channels.add(new Channel(name == null || name.length() == 0 ? M3uParser.guessName(url) : name,
                 url, "", categoryFilter.length() == 0 ? "Enlace directo" : categoryFilter,
-                ownHeaders, null, "", "", ""));
+                ownHeaders, null,
+                licType == null ? "" : licType,
+                licKey == null ? "" : licKey,
+                licStream == null ? "" : licStream));
         index = 0;
 
         if (MODE_LIST.equals(mode)) {
@@ -375,27 +384,54 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
      * El lector solo extrae y valida las entradas: no reproduce nada.
      */
     private void loadChannelList(final long playlistId, final String url, final String name) {
-        final PlaylistStore.Playlist list = playlist;
         background.execute(new Runnable() {
             @Override
             public void run() {
                 final ArrayList<Channel> parsed = new ArrayList<Channel>();
                 String problem = null;
                 try {
-                    String text = PlaylistStore.readCache(PlayerActivity.this, list);
-                    if (text == null || text.length() == 0) {
-                        problem = "la lista no tiene ninguna copia guardada en este teléfono";
+                    // Una o varias listas activas: cada una se lee por separado y se unen
+                    // los canales (misma idea que en el menú principal).
+                    java.util.ArrayList<PlaylistStore.Playlist> lists =
+                            PlaylistStore.activeLists(PlayerActivity.this);
+                    if (lists.isEmpty() && playlist != null) lists.add(playlist);
+                    if (lists.isEmpty()) {
+                        problem = "no hay lista activa";
                     } else {
-                        M3uParser.Result result = M3uParser.parse(text,
-                                list != null && !list.isDemo() ? list.ref : null);
-                        // REVISIÓN 51: el panel de canales guarda la lista COMPLETA y
-                        // filtra por apartado dentro de sí mismo; así se puede cambiar
-                        // de apartado sin salir del reproductor.
-                        for (int i = 0; i < result.channels.size(); i++) {
-                            parsed.add(result.channels.get(i));
+                        for (int li = 0; li < lists.size(); li++) {
+                            PlaylistStore.Playlist list = lists.get(li);
+                            String text;
+                            if (list.isDemo()) {
+                                text = DemoData.text();
+                            } else {
+                                text = PlaylistStore.readCache(PlayerActivity.this, list);
+                            }
+                            if (text == null || text.length() == 0) {
+                                Diag.add("Reproductor · sin caché para " + list.name);
+                                continue;
+                            }
+                            M3uParser.Result result = M3uParser.parse(text,
+                                    list.isDemo() ? null : list.ref);
+                            if (result.mediaPlaylist) {
+                                Diag.add("Reproductor · " + list.name + " es vídeo HLS, se omite");
+                                continue;
+                            }
+                            for (int i = 0; i < result.channels.size(); i++) {
+                                Channel ch = result.channels.get(i);
+                                if (ch == null || ch.name == null) continue;
+                                String n = ch.name.trim().toLowerCase(java.util.Locale.US);
+                                if (n.endsWith(".mpd") || n.endsWith(".m3u8") || n.endsWith(".m3u")
+                                        || n.equals("index") || n.startsWith("index.")
+                                        || n.equals("cenc") || n.startsWith("cenc.")) {
+                                    continue;
+                                }
+                                parsed.add(ch);
+                            }
+                            Diag.add("Reproductor · " + list.name + ": " + result.summary());
                         }
-                        if (parsed.isEmpty()) problem = result.reason();
-                        Diag.add("Reproductor · lista leída en segundo plano: " + result.summary());
+                        if (parsed.isEmpty()) {
+                            problem = "las listas activas no tienen canales legibles";
+                        }
                     }
                 } catch (OutOfMemoryError oom) {
                     problem = "la lista es demasiado grande para la memoria de este teléfono";

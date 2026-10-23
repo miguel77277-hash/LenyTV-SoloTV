@@ -2017,6 +2017,9 @@ public final class MainActivity extends android.app.Activity {
         intent.putExtra(PlayerActivity.EXTRA_HEADERS, channel.headersSpec());
         intent.putExtra(PlayerActivity.EXTRA_NAME, channel.name);
         intent.putExtra(PlayerActivity.EXTRA_CATEGORY, CAT_ALL.equals(selectedCategory) ? "" : selectedCategory);
+        intent.putExtra(PlayerActivity.EXTRA_LICENSE_TYPE, channel.licenseType);
+        intent.putExtra(PlayerActivity.EXTRA_LICENSE_KEY, channel.licenseKey);
+        intent.putExtra(PlayerActivity.EXTRA_LICENSE_STREAM_HEADERS, channel.licenseStreamHeaders);
         startActivity(intent);
     }
 

@@ -10,8 +10,8 @@ android {
         applicationId = "com.pocketbuilder.app_wslenytvplayer1792356127271"
         minSdk = 29
         targetSdk = 34
-        versionCode = 82
-        versionName = "1.82-bg-names"
+        versionCode = 83
+        versionName = "1.83-multilist-player"
     }
 
     buildTypes {
