@@ -1449,6 +1449,8 @@ public final class MainActivity extends android.app.Activity {
 
     /**
      * Carga y fusiona varias listas activas en un solo catálogo de canales.
+     * Usa la misma lectura que una lista sola (caché, archivo, Net.loadList)
+     * para no perder cabeceras, ClearKey ni URLs relativas.
      */
     private void loadMergedLists(final java.util.ArrayList<PlaylistStore.Playlist> actives,
                                  final boolean forceNetwork) {
@@ -1460,49 +1462,90 @@ public final class MainActivity extends android.app.Activity {
             public void run() {
                 final ArrayList<Channel> merged = new ArrayList<Channel>();
                 final StringBuilder names = new StringBuilder();
+                final StringBuilder problems = new StringBuilder();
                 for (int i = 0; i < actives.size(); i++) {
                     PlaylistStore.Playlist pl = actives.get(i);
                     if (names.length() > 0) names.append(" + ");
                     names.append(pl.name);
                     String text = null;
-                    if (pl.isDemo()) {
-                        text = DemoData.text();
-                    } else {
-                        text = PlaylistStore.readCache(MainActivity.this, pl);
-                        if ((text == null || text.length() == 0) || forceNetwork) {
-                            // Intento de descarga simple si no hay caché
-                            try {
-                                if (PlaylistStore.KIND_URL.equals(pl.kind) && pl.ref != null && pl.ref.length() > 0) {
-                                    String body = Net.getText(pl.ref, AppPrefs.headers(MainActivity.this));
-                                    if (body != null && body.length() > 0) {
-                                        text = body;
-                                        PlaylistStore.writeCache(MainActivity.this, pl, text);
-                                    }
-                                } else if (PlaylistStore.KIND_FILE.equals(pl.kind) && pl.ref != null) {
-                                    // La caché debería existir; si no, se deja vacío
+                    try {
+                        if (pl.isDemo()) {
+                            text = DemoData.text();
+                        } else if (PlaylistStore.KIND_FILE.equals(pl.kind)) {
+                            text = PlaylistStore.readCache(MainActivity.this, pl);
+                            if (text == null || text.length() == 0 || forceNetwork) {
+                                text = readUri(pl.ref);
+                                if (text != null && text.length() > 0) {
+                                    PlaylistStore.writeCache(MainActivity.this, pl, text);
                                 }
-                            } catch (Throwable ignored) {
+                            }
+                        } else {
+                            text = PlaylistStore.readCache(MainActivity.this, pl);
+                            if (text == null || text.length() == 0 || forceNetwork) {
+                                if (!Net.online(MainActivity.this)) {
+                                    if (text == null || text.length() == 0) {
+                                        if (problems.length() > 0) problems.append(" · ");
+                                        problems.append(pl.name).append(": sin conexión");
+                                    }
+                                } else {
+                                    Net.LoadResult result = Net.loadList(pl.ref,
+                                            AppPrefs.headers(MainActivity.this));
+                                    if (result.ok()) {
+                                        text = result.text;
+                                        PlaylistStore.writeCache(MainActivity.this, pl, text);
+                                    } else {
+                                        if (problems.length() > 0) problems.append(" · ");
+                                        problems.append(pl.name).append(": ")
+                                                .append(result.error == null ? "error" : result.error);
+                                    }
+                                }
                             }
                         }
+                    } catch (Throwable ex) {
+                        if (problems.length() > 0) problems.append(" · ");
+                        problems.append(pl.name).append(": ").append(Net.describe(ex));
+                        Diag.add("Fusión · fallo en " + pl.name + ": " + Net.describe(ex));
                     }
-                    if (text == null || text.length() == 0) continue;
+                    if (text == null || text.length() == 0) {
+                        Diag.add("Fusión · " + pl.name + " sin contenido, se omite");
+                        continue;
+                    }
                     M3uParser.Result parsed = M3uParser.parse(text, baseOf(pl));
+                    // Un .m3u8 de un solo vídeo no es lista de canales: no se mezcla
+                    if (parsed.mediaPlaylist) {
+                        Diag.add("Fusión · " + pl.name + " es un vídeo HLS, no lista de canales; se omite");
+                        if (problems.length() > 0) problems.append(" · ");
+                        problems.append(pl.name).append(": es vídeo, no lista");
+                        continue;
+                    }
+                    int before = merged.size();
                     for (int c = 0; c < parsed.channels.size(); c++) {
-                        merged.add(parsed.channels.get(c));
+                        Channel ch = parsed.channels.get(c);
+                        // Conservar tal cual (URL, license ClearKey, headers del canal)
+                        merged.add(ch);
                     }
                     pl.channels = parsed.channels.size();
                     pl.updated = System.currentTimeMillis();
                     try { PlaylistStore.update(MainActivity.this, pl); } catch (Throwable ignored) {}
+                    Diag.add("Fusión · " + pl.name + ": +" + (merged.size() - before)
+                            + " canales (total " + merged.size() + ")");
                 }
                 final String title = names.toString();
+                final String warn = problems.toString();
+                final ArrayList<Channel> finalMerged = merged;
                 ui.post(new Runnable() {
                     @Override
                     public void run() {
                         if (token != loadToken) return;
                         setBusy(false);
-                        setChannels(merged, activePlaylist, false, "");
-                        setStatus("Listas unidas: " + title + " · " + merged.size() + " entradas", Ui.OK);
-                        Diag.add("Listas fusionadas (" + actives.size() + "): " + merged.size() + " canales");
+                        setChannels(finalMerged, activePlaylist, false, "");
+                        if (finalMerged.isEmpty()) {
+                            setStatus("No se pudo unir las listas"
+                                    + (warn.length() > 0 ? ": " + warn : ""), Ui.WARN);
+                        } else {
+                            setStatus("Listas unidas: " + title + " · " + finalMerged.size() + " entradas"
+                                    + (warn.length() > 0 ? " (" + warn + ")" : ""), Ui.OK);
+                        }
                     }
                 });
             }

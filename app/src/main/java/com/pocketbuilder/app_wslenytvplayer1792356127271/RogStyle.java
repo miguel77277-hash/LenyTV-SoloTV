@@ -40,19 +40,33 @@ final class RogStyle {
     /** Recuadro blanco donde va el logo de cada canal. */
     static final int LOGO_BOX = 0xFFFFFFFF;
 
-    /** Pone la imagen de fondo de la referencia; si faltara, un color oscuro. */
+    /**
+     * Fondo del menú de canales: Lenny en el sillón (assets/generated/cover.png)
+     * con una capa oscura para que se lean categorías y tarjetas.
+     */
     static void applyBackdrop(Context ctx, View view) {
         if (ctx == null || view == null) return;
+        Bitmap bitmap = null;
         try {
-            Bitmap bitmap = BitmapFactory.decodeStream(ctx.getAssets().open("generated/fondo_rog.png"));
-            if (bitmap != null) {
-                BitmapDrawable drawable = new BitmapDrawable(ctx.getResources(), bitmap);
-                drawable.setGravity(Gravity.FILL);
-                view.setBackground(drawable);
-                return;
-            }
+            bitmap = BitmapFactory.decodeStream(ctx.getAssets().open("generated/cover.png"));
         } catch (Throwable ignored) {
-            // Si la imagen no se puede leer se usa el color de reserva.
+        }
+        if (bitmap == null) {
+            try {
+                bitmap = BitmapFactory.decodeStream(ctx.getAssets().open("generated/fondo_rog.png"));
+            } catch (Throwable ignored) {
+            }
+        }
+        if (bitmap != null) {
+            BitmapDrawable photo = new BitmapDrawable(ctx.getResources(), bitmap);
+            photo.setGravity(Gravity.FILL);
+            // Capa semitransparente para legibilidad
+            GradientDrawable scrim = new GradientDrawable();
+            scrim.setColor(0xCC08080F);
+            android.graphics.drawable.LayerDrawable layers =
+                    new android.graphics.drawable.LayerDrawable(new Drawable[]{photo, scrim});
+            view.setBackground(layers);
+            return;
         }
         view.setBackgroundColor(0xFF0A0507);
     }
