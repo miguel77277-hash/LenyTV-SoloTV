@@ -19,7 +19,9 @@ import androidx.media3.common.Tracks;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.DefaultLoadControl;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
+import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory;
 import androidx.media3.exoplayer.dash.DashMediaSource;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.DrmSessionManager;
@@ -185,11 +187,20 @@ public final class Media3Engine {
                 });
             }
 
+            // EXTENSION_RENDERER_MODE_ON: usa FFmpeg solo si MediaCodec no puede
+            // (p. ej. AC-3). El motor sigue siendo Media3; no se cambia el pipeline.
+            DefaultRenderersFactory renderersFactory = new NextRenderersFactory(appContext);
+            renderersFactory.setExtensionRendererMode(
+                    DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
+            renderersFactory.setEnableDecoderFallback(true);
+
             player = new ExoPlayer.Builder(appContext)
+                    .setRenderersFactory(renderersFactory)
                     .setTrackSelector(trackSelector)
                     .setLoadControl(loadControl)
                     .setMediaSourceFactory(mediaSourceFactory)
                     .build();
+            status("Media3 · FFmpeg audio extension activa (AC-3/E-AC-3 si hace falta)");
 
             player.setAudioAttributes(
                     new AudioAttributes.Builder()

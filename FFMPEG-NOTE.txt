@@ -1,0 +1,6 @@
+Leny TV 1.86 — FFmpeg via nextlib-media3ext
+==========================================
+- Motor de reproducción: sigue siendo AndroidX Media3 / ExoPlayer.
+- nextlib solo aporta descodificadores de audio por software (AC-3, E-AC-3, etc.).
+- EXTENSION_RENDERER_MODE_ON: FFmpeg se usa cuando el decoder del sistema no puede.
+- Licencia de nextlib: GPL-3.0 (ver https://github.com/anilbeesetti/nextlib).
