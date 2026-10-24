@@ -12,7 +12,6 @@ import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
-import androidx.media3.common.Tracks;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.TrackSelectionOverride;
@@ -152,7 +151,6 @@ public final class Media3Engine {
                             // frente a AC-3/E-AC-3 cuando el manifiesto ofrece varias pistas.
                             .setPreferredAudioMimeTypes(
                                     MimeTypes.AUDIO_AAC,
-                                    
                                     MimeTypes.AUDIO_MPEG,
                                     MimeTypes.AUDIO_OPUS,
                                     MimeTypes.AUDIO_VORBIS)
@@ -680,6 +678,62 @@ public final class Media3Engine {
         long pos = getCurrentPosition();
         long dur = getDuration();
         return formatMs(pos) + (dur > 0 ? " / " + formatMs(dur) : "");
+    }
+
+
+    /**
+     * Elige una pista de audio reproducible. Prioriza AAC; evita silencio cuando
+     * el selector deja AC-3/E-AC-3 no soportado por el aparato.
+     */
+    private void ensurePlayableAudioTrack() {
+        ExoPlayer p = player;
+        DefaultTrackSelector ts = trackSelector;
+        if (p == null || ts == null || released) return;
+        try {
+            Tracks tracks = p.getCurrentTracks();
+            if (tracks == null) return;
+            int bestGroupIndex = -1;
+            int bestTrackIndex = 0;
+            int bestScore = -1;
+            java.util.List<Tracks.Group> groups = tracks.getGroups();
+            for (int gi = 0; gi < groups.size(); gi++) {
+                Tracks.Group group = groups.get(gi);
+                if (group.getType() != C.TRACK_TYPE_AUDIO) continue;
+                for (int ti = 0; ti < group.length; ti++) {
+                    if (!group.isTrackSupported(ti)) continue;
+                    Format fmt = group.getTrackFormat(ti);
+                    String mime = fmt == null || fmt.sampleMimeType == null
+                            ? "" : fmt.sampleMimeType.toLowerCase(Locale.US);
+                    int score = 10;
+                    if (mime.contains("mp4a") || mime.contains("aac")) score = 100;
+                    else if (mime.contains("mpeg") || mime.contains("mp3")) score = 80;
+                    else if (mime.contains("opus")) score = 70;
+                    else if (mime.contains("vorbis")) score = 60;
+                    else if (mime.contains("ac-3") || mime.contains("ac3")
+                            || mime.contains("eac3") || mime.contains("ec-3")) score = 5;
+                    else if (mime.contains("dts")) score = 3;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestGroupIndex = gi;
+                        bestTrackIndex = ti;
+                    }
+                }
+            }
+            if (bestGroupIndex < 0) {
+                status("Media3 · sin pista de audio soportada en este dispositivo");
+                return;
+            }
+            Tracks.Group chosen = groups.get(bestGroupIndex);
+            Format fmt = chosen.getTrackFormat(bestTrackIndex);
+            String mime = fmt != null && fmt.sampleMimeType != null ? fmt.sampleMimeType : "?";
+            DefaultTrackSelector.Parameters.Builder b = ts.buildUponParameters()
+                    .clearOverridesOfType(C.TRACK_TYPE_AUDIO);
+            b.setOverrideForType(new TrackSelectionOverride(chosen.getMediaTrackGroup(), bestTrackIndex));
+            ts.setParameters(b.build());
+            status("Media3 · audio: " + mime);
+        } catch (Throwable ex) {
+            status("Media3 · no se pudo fijar pista de audio: " + safeMsg(ex));
+        }
     }
 
     public void release() {
