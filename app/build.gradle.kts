@@ -4,14 +4,14 @@ plugins {
 
 android {
     namespace = "com.pocketbuilder.app_wslenytvplayer1792356127271"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.pocketbuilder.app_wslenytvplayer1792356127271"
         minSdk = 29
         targetSdk = 34
-        versionCode = 86
-        versionName = "1.86-ffmpeg-ac3"
+        versionCode = 87
+        versionName = "1.87-sdk35"
     }
 
     buildTypes {
@@ -37,7 +37,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // Necesario para empaquetar las bibliotecas nativas de NextLib.
+            // Necesario para empaquetar libffmpeg de nextlib
             useLegacyPackaging = true
         }
     }
@@ -49,16 +49,16 @@ android {
 }
 
 dependencies {
-    // AndroidX Media3 / ExoPlayer — motor principal de LENY TV
+    // AndroidX Media3 / ExoPlayer — motor de reproducción de LENY TV
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.media3:media3-exoplayer-dash:1.8.0")
     implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
     implementation("androidx.media3:media3-datasource:1.8.0")
     implementation("androidx.media3:media3-common:1.8.0")
 
-    // Extensión FFmpeg para decodificación adicional de audio.
-    // NextLib está publicada bajo GPL-3.0; revisar sus obligaciones de licencia
-    // antes de distribuir la aplicación.
+    // FFmpeg (AC-3/E-AC-3 etc.) como renderizador EXTRA de Media3.
+    // No sustituye el motor: solo decodifica audio que el sistema no puede.
+    // https://github.com/anilbeesetti/nextlib  (GPL-3.0)
     implementation("io.github.anilbeesetti:nextlib-media3ext:1.8.0-0.9.0")
 
     // Anotaciones (Nullable etc.) usadas por Media3Engine
