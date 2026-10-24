@@ -14,6 +14,9 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.AudioAttributes;
+import androidx.media3.common.MimeTypes;
+import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.Tracks;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.DefaultLoadControl;
@@ -145,6 +148,17 @@ public final class Media3Engine {
             trackSelector.setParameters(
                     trackSelector.buildUponParameters()
                             .setForceHighestSupportedBitrate(false)
+                            // Preferir AAC/MP3/Opus (decodificables en casi todos los móviles)
+                            // frente a AC-3/E-AC-3 cuando el manifiesto ofrece varias pistas.
+                            .setPreferredAudioMimeTypes(
+                                    MimeTypes.AUDIO_AAC,
+                                    
+                                    MimeTypes.AUDIO_MPEG,
+                                    MimeTypes.AUDIO_OPUS,
+                                    MimeTypes.AUDIO_VORBIS)
+                            .setExceedAudioConstraintsIfNecessary(true)
+                            .setAllowAudioMixedMimeTypeAdaptiveness(true)
+                            .setAllowAudioNonSeamlessAdaptiveness(true)
                             .build());
 
             DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
@@ -704,6 +718,7 @@ public final class Media3Engine {
                 notifyBuffering(false);
                 notifyPrepared();
                 refreshQualities();
+                ensurePlayableAudioTrack();
             } else if (playbackState == Player.STATE_ENDED) {
                 notifyFinished();
             }

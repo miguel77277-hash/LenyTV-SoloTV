@@ -22,21 +22,21 @@ final class RogStyle {
     }
 
     /** Fondo de la barra superior: negro con un tono rojizo muy oscuro. */
-    static final int BAR_TOP = 0xF20C0709;
-    static final int BAR_BOTTOM = 0xE6070405;
+    static final int BAR_TOP = 0xF0081228;
+    static final int BAR_BOTTOM = 0xE00A1830;
     /** Caja azul de la categoría elegida. */
-    static final int BLUE_BOX = 0xFF0D47A1;
+    static final int BLUE_BOX = 0xFF0A4D8C;
     static final int BLUE_BOX_EDGE = 0xFF00E5FF;
     /** Fondo de la columna de categorías (deja ver el fondo de la pantalla). */
-    static final int RAIL_PANEL = 0x8C0A0608;
-    static final int RAIL_IDLE = 0x59150E12;
+    static final int RAIL_PANEL = 0xCC0A1220;
+    static final int RAIL_IDLE = 0x40152840;
     /** Textos. */
-    static final int TEXT = 0xFFF3F1F1;
-    static final int TEXT_DIM = 0xFFB4ADAF;
-    static final int DATE = 0xFFE4DCDC;
+    static final int TEXT = 0xFFE8F4FF;
+    static final int TEXT_DIM = 0xFF8AABB8;
+    static final int DATE = 0xFFB8D4E8;
     /** Engranaje verde y botón de apagado de la referencia. */
-    static final int GREEN = 0xFF35C46A;
-    static final int POWER = 0xFFE0413A;
+    static final int GREEN = 0xFF00E5FF;
+    static final int POWER = 0xFFFF4D6A;
     /** Recuadro blanco donde va el logo de cada canal. */
     static final int LOGO_BOX = 0xFFFFFFFF;
 
@@ -92,9 +92,24 @@ final class RogStyle {
     static Drawable categoryRow(Context ctx, boolean selected) {
         GradientDrawable g = new GradientDrawable();
         g.setShape(GradientDrawable.RECTANGLE);
-        g.setColor(selected ? BLUE_BOX : RAIL_IDLE);
-        g.setCornerRadius(Ui.dpi(ctx, 2));
-        if (selected) g.setStroke(Math.max(1, Ui.dpi(ctx, 1)), BLUE_BOX_EDGE);
+        if (selected) {
+            g.setColor(0xFF0A3A5C);
+            g.setStroke(Math.max(1, Ui.dpi(ctx, 1)), 0xFF00E5FF);
+            g.setCornerRadius(Ui.dpi(ctx, 18));
+        } else {
+            g.setColor(RAIL_IDLE);
+            g.setCornerRadius(Ui.dpi(ctx, 12));
+        }
+        return g;
+    }
+
+    /** Tarjeta de canal estilo cristal / neón. */
+    static Drawable channelCard(Context ctx) {
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.RECTANGLE);
+        g.setColor(0xE6152038);
+        g.setStroke(Math.max(1, Ui.dpi(ctx, 1)), 0x6600D4FF);
+        g.setCornerRadius(Ui.dpi(ctx, 14));
         return g;
     }
 }

@@ -1102,8 +1102,8 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         volumeBar.setProgress(volumePercent());
         volumeBar.setContentDescription("Volumen");
         volumeBar.setMinimumHeight(Ui.dpi(this, 34));
-        volumeBar.setProgressTintList(ColorStateList.valueOf(0xFFE0413A));
-        volumeBar.setThumbTintList(ColorStateList.valueOf(0xFFE0413A));
+        volumeBar.setProgressTintList(ColorStateList.valueOf(0xFF00D4FF));
+        volumeBar.setThumbTintList(ColorStateList.valueOf(0xFF00E5FF));
         volumeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
@@ -1141,8 +1141,8 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         progressBar.setContentDescription("Barra de progreso del canal");
         progressBar.setMinimumHeight(Ui.dpi(this, 34));
         progressBar.setPadding(Ui.dpi(this, 6), 0, Ui.dpi(this, 6), 0);
-        progressBar.setProgressTintList(ColorStateList.valueOf(0xFFE0413A));
-        progressBar.setThumbTintList(ColorStateList.valueOf(0xFFE0413A));
+        progressBar.setProgressTintList(ColorStateList.valueOf(0xFF00D4FF));
+        progressBar.setThumbTintList(ColorStateList.valueOf(0xFF00E5FF));
         progressBar.setProgressBackgroundTintList(ColorStateList.valueOf(0x66FFFFFF));
         progressBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -1197,7 +1197,7 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         controls.addView(prevButton, skinParams(6f));
 
         playButton = skinButton(PlayerIcons.play(this, 0xFFFFFFFF), 54f, "Reproducir o pausar");
-        playButton.setBackground(Ui.buttonBg(this, 0xFF1E6FD9, 0xFF2F8CF0, 0x00000000, 8f));
+        playButton.setBackground(Ui.buttonBg(this, 0xFF00A8E8, 0xFF00D4FF, 0x6600E5FF, 12f));
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

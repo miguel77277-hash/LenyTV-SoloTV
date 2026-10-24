@@ -16,15 +16,15 @@ import android.widget.TextView;
 /** Paleta retro TV y ayudas para construir la interfaz por código. */
 final class Ui {
 
-    static final int BG = 0xFF08080F;
+    static final int BG = 0xFF070B14;
     static final int HEADER = 0xFF12121C;
-    static final int PANEL = 0xFF15151F;
-    static final int CARD = 0xFF1B1B28;
-    static final int CARD_SEL = 0xFF2B2B40;
-    static final int RED = 0xFFE13A2B;
-    static final int RED_DEEP = 0xFF7C1A11;
-    static final int BLUE = 0xFF2D63E8;
-    static final int BLUE_DEEP = 0xFF142F6E;
+    static final int PANEL = 0xFF0F1729;
+    static final int CARD = 0xFF152038;
+    static final int CARD_SEL = 0xFF1A3A5C;
+    static final int RED = 0xFF00D4FF;
+    static final int RED_DEEP = 0xFF0088AA;
+    static final int BLUE = 0xFF2F8CFF;
+    static final int BLUE_DEEP = 0xFF00B8E6;
     static final int TEXT = 0xFFF4F4F8;
     static final int TEXT_DIM = 0xFF9E9EB2;
     static final int TEXT_MUTED = 0xFF6E6E85;

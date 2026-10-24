@@ -60,19 +60,19 @@ final class RogChannelAdapter extends BaseAdapter {
             card = new LinearLayout(ctx);
             card.setOrientation(LinearLayout.VERTICAL);
             card.setGravity(Gravity.CENTER_HORIZONTAL);
-            card.setPadding(Ui.dpi(ctx, 4), Ui.dpi(ctx, 4), Ui.dpi(ctx, 4), Ui.dpi(ctx, 4));
-            card.setBackgroundColor(0x00000000);
+            card.setPadding(Ui.dpi(ctx, 8), Ui.dpi(ctx, 10), Ui.dpi(ctx, 8), Ui.dpi(ctx, 10));
+            card.setBackground(RogStyle.channelCard(ctx));
 
             logo = new ImageView(ctx);
             logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
             logo.setBackground(RogStyle.logoBox(ctx));
-            logo.setPadding(Ui.dpi(ctx, 5), Ui.dpi(ctx, 5), Ui.dpi(ctx, 5), Ui.dpi(ctx, 5));
+            logo.setPadding(Ui.dpi(ctx, 6), Ui.dpi(ctx, 6), Ui.dpi(ctx, 6), Ui.dpi(ctx, 6));
             card.addView(logo, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, Ui.dpi(ctx, 52)));
 
             name = new TextView(ctx);
             name.setTextSize(9.5f);
-            name.setTextColor(RogStyle.TEXT);
+            name.setTextColor(0xFFB8E8FF);
             name.setTypeface(Typeface.DEFAULT_BOLD);
             name.setGravity(Gravity.CENTER_HORIZONTAL);
             name.setMaxLines(2);
