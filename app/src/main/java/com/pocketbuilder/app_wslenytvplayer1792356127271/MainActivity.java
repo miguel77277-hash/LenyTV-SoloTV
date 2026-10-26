@@ -645,6 +645,13 @@ public final class MainActivity extends android.app.Activity {
         categoryList.setDivider(null);
         categoryList.setDividerHeight(Ui.dpi(this, 4));
         categoryList.setPadding(0, Ui.dpi(this, 6), 0, Ui.dpi(this, 6));
+        // Mando TV: el foco debe entrar en cada fila de categoría
+        categoryList.setFocusable(true);
+        categoryList.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        try {
+            categoryList.setItemsCanFocus(true);
+        } catch (Throwable ignored) {
+        }
         categoryList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {

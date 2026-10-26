@@ -973,7 +973,24 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         button.setContentDescription(description);
         button.setClickable(true);
         button.setFocusable(true);
+        button.setFocusableInTouchMode(false);
         button.setBackground(Ui.buttonBg(this, 0x00000000, 0x33FFFFFF, 0x00000000, 6f));
+        button.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus) {
+                    v.setBackground(Ui.buttonBg(PlayerActivity.this,
+                            0x6600D4FF, 0x9900F0FF, 0xFF00F0FF, 10f));
+                    v.setScaleX(1.12f);
+                    v.setScaleY(1.12f);
+                } else {
+                    v.setBackground(Ui.buttonBg(PlayerActivity.this,
+                            0x00000000, 0x33FFFFFF, 0x00000000, 6f));
+                    v.setScaleX(1f);
+                    v.setScaleY(1f);
+                }
+            }
+        });
         return button;
     }
 
@@ -1236,10 +1253,14 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         }));
         controls.addView(subtitlesButton, skinParams(6f));
 
+        controls.setFocusable(false);
+        controls.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         LinearLayout.LayoutParams controlParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         controlParams.topMargin = Ui.dpi(this, 2);
         bottomBar.addView(controls, controlParams);
+        bottomBar.setFocusable(false);
+        bottomBar.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
 
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
@@ -1593,13 +1614,21 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     private void focusPlayerControls() {
         try {
-            // No enfocar el botón play: si no, OK pausaría al abrir la barra.
-            // El foco va a la barra inferior; el usuario mueve el DPAD hasta play.
-            View target = bottomBar != null ? bottomBar
-                    : (topBar != null ? topBar : playButton);
+            // Enfocar un botón hijo (no el contenedor): así el DPAD puede moverse
+            // entre anterior / play / siguiente / lista / calidad.
+            if (bottomBar != null) {
+                bottomBar.setFocusable(false);
+                bottomBar.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+            }
+            if (topBar != null) {
+                topBar.setFocusable(false);
+                topBar.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+            }
+            View target = prevButton != null ? prevButton
+                    : (playButton != null ? playButton : nextButton);
             if (target != null) {
                 target.setFocusable(true);
-                target.setFocusableInTouchMode(true);
+                target.setFocusableInTouchMode(false);
                 target.requestFocus();
             }
         } catch (Throwable ignored) {

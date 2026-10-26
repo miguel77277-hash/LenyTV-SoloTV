@@ -1,6 +1,7 @@
 package com.pocketbuilder.app_wslenytvplayer1792356127271;
 
 import android.graphics.Typeface;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -101,7 +102,7 @@ final class RogCategoryAdapter extends BaseAdapter {
         });
 
         final int pos = position;
-        row.setOnClickListener(new View.OnClickListener() {
+        View.OnClickListener open = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (action != null) {
@@ -111,6 +112,20 @@ final class RogCategoryAdapter extends BaseAdapter {
                 if (parent instanceof AdapterView) {
                     ((AdapterView<?>) parent).performItemClick(v, pos, getItemId(pos));
                 }
+            }
+        };
+        row.setOnClickListener(open);
+        row.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (event.getAction() != KeyEvent.ACTION_UP) return false;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                        || keyCode == KeyEvent.KEYCODE_ENTER
+                        || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                    open.onClick(v);
+                    return true;
+                }
+                return false;
             }
         });
 
