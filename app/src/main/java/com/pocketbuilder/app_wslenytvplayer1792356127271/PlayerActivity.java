@@ -1370,6 +1370,8 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         panel.setBackground(shell);
         panel.setPadding(Ui.dpi(this, 12), Ui.dpi(this, 12), Ui.dpi(this, 12), Ui.dpi(this, 12));
         panel.setClickable(true);
+        panel.setFocusable(false);
+        panel.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -1414,6 +1416,38 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         drawerList.setAdapter(drawerAdapter);
         drawerList.setDivider(null);
         drawerList.setDividerHeight(Ui.dpi(this, 4));
+        drawerList.setFocusable(true);
+        drawerList.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        try { drawerList.setItemsCanFocus(true); } catch (Throwable ignored) {}
+        drawerList.setSmoothScrollbarEnabled(true);
+        drawerList.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+                if (keyCode != KeyEvent.KEYCODE_DPAD_DOWN && keyCode != KeyEvent.KEYCODE_DPAD_UP) {
+                    return false;
+                }
+                int pos = drawerList.getSelectedItemPosition();
+                if (pos < 0) pos = drawerList.getFirstVisiblePosition();
+                int count = drawerAdapter == null ? 0 : drawerAdapter.getCount();
+                if (count <= 0) return false;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && pos < count - 1) {
+                    int next = pos + 1;
+                    drawerList.setSelection(next);
+                    drawerList.smoothScrollToPosition(next);
+                    focusDrawerRow(next);
+                    return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP && pos > 0) {
+                    int prev = pos - 1;
+                    drawerList.setSelection(prev);
+                    drawerList.smoothScrollToPosition(prev);
+                    focusDrawerRow(prev);
+                    return true;
+                }
+                return false;
+            }
+        });
         drawerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -3062,6 +3096,38 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     // ------------------------------------------------------------------ panel de canales
 
+    /** Lleva el foco del mando a una fila visible y asegura que se vea al hacer scroll. */
+    private void focusDrawerRow(final int position) {
+        if (drawerList == null || position < 0) return;
+        drawerList.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int first = drawerList.getFirstVisiblePosition();
+                    int childIndex = position - first;
+                    if (childIndex >= 0 && childIndex < drawerList.getChildCount()) {
+                        View child = drawerList.getChildAt(childIndex);
+                        if (child != null) {
+                            child.requestFocus();
+                            drawerList.requestChildRectangleOnScreen(child,
+                                    new android.graphics.Rect(0, 0, child.getWidth(), child.getHeight()),
+                                    false);
+                        }
+                    } else {
+                        drawerList.smoothScrollToPosition(position);
+                        drawerList.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                focusDrawerRow(position);
+                            }
+                        });
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        });
+    }
+
     private void openDrawer() {
         if (drawerHolder == null) return;
         rebuildDrawerSections();
@@ -3206,6 +3272,9 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                 textParams.leftMargin = Ui.dpi(PlayerActivity.this, 10);
                 row.addView(texts, textParams);
                 row.setTag(new Object[]{logo, name, category});
+                row.setFocusable(true);
+                row.setClickable(true);
+                row.setFocusableInTouchMode(false);
             }
             int channelIndex = channelIndexAt(position);
             if (channelIndex < 0) return row;
@@ -3213,12 +3282,81 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             String visibleName = Names.forDisplay(name.getPaint(), channel.name);
             name.setText(visibleName);
             category.setText(Names.forSection(category.getPaint(), channel.category));
-            boolean isCurrent = channelIndex == index;
+            final boolean isCurrent = channelIndex == index;
+            final int channelIndexFinal = channelIndex;
             name.setTextColor(isCurrent ? 0xFFFFFFFF : Ui.TEXT);
             // Filas del panel también translúcidas, para que el vídeo se vea detrás.
             row.setBackground(Ui.roundedStroke(PlayerActivity.this,
                     isCurrent ? 0x99E13A2B : 0x5A14141C, isCurrent ? Ui.RED : 0x55242433, 1f, 8f));
             LogoLoader.load(PlayerActivity.this, channel.logo, logo, visibleName);
+            row.setFocusable(true);
+            row.setClickable(true);
+            row.setFocusableInTouchMode(false);
+            // Brillo fuerte solo con foco del mando (el táctil sigue igual vía OnItemClick)
+            final int listPosFocus = position;
+            row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) {
+                        v.setBackground(Ui.roundedStroke(PlayerActivity.this,
+                                0xCC00A8E8, 0xFF00F0FF, 2.5f, 8f));
+                        name.setTextColor(0xFFFFFFFF);
+                        // Al bajar con el mando, la lista debe desplazarse
+                        if (drawerList != null) {
+                            drawerList.smoothScrollToPosition(listPosFocus);
+                            drawerList.requestChildRectangleOnScreen(v,
+                                    new android.graphics.Rect(0, 0, v.getWidth(), v.getHeight()),
+                                    false);
+                        }
+                    } else {
+                        v.setBackground(Ui.roundedStroke(PlayerActivity.this,
+                                isCurrent ? 0x99E13A2B : 0x5A14141C,
+                                isCurrent ? Ui.RED : 0x55242433, 1f, 8f));
+                        name.setTextColor(isCurrent ? 0xFFFFFFFF : Ui.TEXT);
+                    }
+                }
+            });
+            final int listPos = position;
+            row.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int keyCode, KeyEvent event) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                                && listPos < drawerPositions.size() - 1) {
+                            int next = listPos + 1;
+                            drawerList.setSelection(next);
+                            drawerList.smoothScrollToPosition(next);
+                            focusDrawerRow(next);
+                            return true;
+                        }
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_UP && listPos > 0) {
+                            int prev = listPos - 1;
+                            drawerList.setSelection(prev);
+                            drawerList.smoothScrollToPosition(prev);
+                            focusDrawerRow(prev);
+                            return true;
+                        }
+                    }
+                    if (event.getAction() != KeyEvent.ACTION_UP) return false;
+                    if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                            || keyCode == KeyEvent.KEYCODE_ENTER
+                            || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                        if (drawerList != null) {
+                            drawerList.performItemClick(v, listPos, listPos);
+                        } else {
+                            playIndex(channelIndexFinal);
+                            closeDrawer();
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+            });
+            if (row.isFocused()) {
+                row.setBackground(Ui.roundedStroke(PlayerActivity.this,
+                        0xCC00A8E8, 0xFF00F0FF, 2.5f, 8f));
+                name.setTextColor(0xFFFFFFFF);
+            }
             return row;
         }
     }
