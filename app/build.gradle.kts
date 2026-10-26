@@ -10,8 +10,8 @@ android {
         applicationId = "com.pocketbuilder.app_wslenytvplayer1792356127271"
         minSdk = 29
         targetSdk = 34
-        versionCode = 87
-        versionName = "1.87-sdk35"
+        versionCode = 88
+        versionName = "1.88-tv-remote"
     }
 
     buildTypes {

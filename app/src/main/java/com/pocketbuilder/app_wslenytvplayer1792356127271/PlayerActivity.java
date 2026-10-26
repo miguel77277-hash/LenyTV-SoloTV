@@ -13,6 +13,7 @@ import android.os.Looper;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -1460,6 +1461,141 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         }
     }
 
+    // --------------------------------------------------------------- mando / TV box
+
+    /**
+     * En móvil los controles salen al tocar. En TV box no hay toque: el mando
+     * envía teclas. Aquí se muestran los controles y se interpretan play/pausa,
+     * canal anterior/siguiente y atrás, sin cambiar el motor ni el resto de la UI.
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event == null) return super.dispatchKeyEvent(event);
+        int action = event.getAction();
+        int key = event.getKeyCode();
+
+        // Paneles abiertos: comportamiento normal (lista, ajustes…)
+        if (isPanelOpen()) {
+            return super.dispatchKeyEvent(event);
+        }
+        if (locked) {
+            // Con bloqueo solo se permite desbloquear con BACK (igual espíritu que toque)
+            if (action == KeyEvent.ACTION_UP
+                    && (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_ESCAPE)) {
+                toggleLock();
+                return true;
+            }
+            return super.dispatchKeyEvent(event);
+        }
+
+        if (action == KeyEvent.ACTION_DOWN) {
+            // Cualquier tecla útil del mando muestra la barra si estaba oculta
+            if (isRemoteNavKey(key) && !controlsVisible) {
+                setControlsVisible(true);
+                focusPlayerControls();
+                // No consumir DPAD: el sistema puede mover el foco al botón
+                if (key == KeyEvent.KEYCODE_DPAD_CENTER
+                        || key == KeyEvent.KEYCODE_ENTER
+                        || key == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                        || key == KeyEvent.KEYCODE_MEDIA_PLAY
+                        || key == KeyEvent.KEYCODE_MEDIA_PAUSE
+                        || key == KeyEvent.KEYCODE_SPACE) {
+                    // Se gestiona en ACTION_UP para no duplicar
+                }
+                scheduleHide();
+            }
+        }
+
+        if (action == KeyEvent.ACTION_UP) {
+            switch (key) {
+                case KeyEvent.KEYCODE_BACK:
+                case KeyEvent.KEYCODE_ESCAPE:
+                    if (controlsVisible) {
+                        setControlsVisible(false);
+                        return true;
+                    }
+                    finish();
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                case KeyEvent.KEYCODE_SPACE:
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                    if (!controlsVisible) {
+                        setControlsVisible(true);
+                        focusPlayerControls();
+                    }
+                    togglePlay();
+                    scheduleHide();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PLAY:
+                    if (media3 != null && !media3.isPlaying()) togglePlay();
+                    setControlsVisible(true);
+                    scheduleHide();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    if (media3 != null && media3.isPlaying()) togglePlay();
+                    setControlsVisible(true);
+                    scheduleHide();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_NEXT:
+                case KeyEvent.KEYCODE_CHANNEL_UP:
+                    stepChannel(1);
+                    setControlsVisible(true);
+                    scheduleHide();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                case KeyEvent.KEYCODE_CHANNEL_DOWN:
+                    stepChannel(-1);
+                    setControlsVisible(true);
+                    scheduleHide();
+                    return true;
+                default:
+                    break;
+            }
+        }
+
+        return super.dispatchKeyEvent(event);
+    }
+
+    private static boolean isRemoteNavKey(int key) {
+        switch (key) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_SPACE:
+            case KeyEvent.KEYCODE_MENU:
+            case KeyEvent.KEYCODE_INFO:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+            case KeyEvent.KEYCODE_CHANNEL_UP:
+            case KeyEvent.KEYCODE_CHANNEL_DOWN:
+            case KeyEvent.KEYCODE_BACK:
+            case KeyEvent.KEYCODE_ESCAPE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void focusPlayerControls() {
+        try {
+            View target = playButton != null ? playButton
+                    : (bottomBar != null ? bottomBar : topBar);
+            if (target != null) {
+                target.setFocusable(true);
+                target.setFocusableInTouchMode(true);
+                target.requestFocus();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     // --------------------------------------------------------------- controles
 
     private void setControlsVisible(boolean visible) {
@@ -1475,8 +1611,12 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         topBar.setVisibility(visible ? View.VISIBLE : View.GONE);
         bottomBar.setVisibility(visible ? View.VISIBLE : View.GONE);
         lockButton.setVisibility(visible ? View.VISIBLE : View.GONE);
-        if (visible) scheduleHide();
-        else ui.removeCallbacks(hideControls);
+        if (visible) {
+            scheduleHide();
+            focusPlayerControls();
+        } else {
+            ui.removeCallbacks(hideControls);
+        }
     }
 
     private void toggleControls() {
