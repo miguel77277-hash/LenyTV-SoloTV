@@ -163,13 +163,14 @@ final class RogChannelAdapter extends BaseAdapter {
                 int cols = g.getNumColumns();
                 if (cols <= 0) cols = 1;
                 int count = getCount();
-                int next = pos;
-                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) next = pos + cols;
-                else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) next = pos - cols;
-                else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) next = pos + 1;
-                else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) next = pos - 1;
+                int nextPos = pos;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) nextPos = pos + cols;
+                else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) nextPos = pos - cols;
+                else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) nextPos = pos + 1;
+                else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) nextPos = pos - 1;
                 else return false;
-                if (next < 0 || next >= count) return true;
+                if (nextPos < 0 || nextPos >= count) return true;
+                final int next = nextPos;
                 g.setSelection(next);
                 g.smoothScrollToPosition(next);
                 g.post(new Runnable() {
