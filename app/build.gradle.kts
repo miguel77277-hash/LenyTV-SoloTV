@@ -10,8 +10,8 @@ android {
         applicationId = "com.pocketbuilder.app_wslenytvplayer1792356127271"
         minSdk = 29
         targetSdk = 34
-        versionCode = 92
-        versionName = "1.92-focus-compile"
+        versionCode = 93
+        versionName = "1.93-open-channel"
     }
 
     buildTypes {

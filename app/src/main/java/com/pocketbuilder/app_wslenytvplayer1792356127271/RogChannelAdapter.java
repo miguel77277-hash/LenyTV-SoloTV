@@ -23,12 +23,21 @@ import java.util.ArrayList;
  */
 final class RogChannelAdapter extends BaseAdapter {
 
+    interface OnChannelAction {
+        void onOpen(Channel channel);
+    }
+
     private final Context ctx;
     private final ArrayList<Channel> data;
+    private OnChannelAction action;
 
     RogChannelAdapter(Context ctx, ArrayList<Channel> data) {
         this.ctx = ctx;
         this.data = data;
+    }
+
+    void setOnChannelAction(OnChannelAction action) {
+        this.action = action;
     }
 
     @Override
@@ -62,6 +71,7 @@ final class RogChannelAdapter extends BaseAdapter {
             card.setGravity(Gravity.CENTER_HORIZONTAL);
             card.setPadding(Ui.dpi(ctx, 8), Ui.dpi(ctx, 10), Ui.dpi(ctx, 8), Ui.dpi(ctx, 10));
             card.setBackground(RogStyle.channelCard(ctx));
+            // Foco del mando (brillo) sin bloquear el clic del GridView.
             card.setFocusable(true);
             card.setFocusableInTouchMode(false);
             card.setClickable(true);
@@ -122,6 +132,14 @@ final class RogChannelAdapter extends BaseAdapter {
             card.setScaleX(1f);
             card.setScaleY(1f);
         }
+        // Clic táctil y OK del mando: abrir reproductor (no depende solo del GridView)
+        final Channel toOpen = channel;
+        card.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (action != null) action.onOpen(toOpen);
+            }
+        });
         return card;
     }
 }

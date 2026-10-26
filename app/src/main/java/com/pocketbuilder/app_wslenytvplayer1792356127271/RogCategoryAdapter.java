@@ -91,7 +91,7 @@ final class RogCategoryAdapter extends BaseAdapter {
         row.setEllipsize(android.text.TextUtils.TruncateAt.END);
         row.setContentDescription(category + ": " + total + " canales");
         row.setFocusable(true);
-        row.setClickable(true);
+        row.setClickable(false);
         final boolean rowChosen = chosen;
         row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
