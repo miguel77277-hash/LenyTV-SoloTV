@@ -630,6 +630,16 @@ public final class MainActivity extends android.app.Activity {
                         return selectedCategory;
                     }
                 });
+        categoryAdapter.setOnCategoryAction(new RogCategoryAdapter.OnCategoryAction() {
+            @Override
+            public void onSelect(String category) {
+                if (category == null) return;
+                selectedCategory = category;
+                if (categoryAdapter != null) categoryAdapter.notifyDataSetChanged();
+                refreshFilter();
+                if (settingsOverlay != null) closeSettings();
+            }
+        });
         categoryList = new ListView(this);
         categoryList.setAdapter(categoryAdapter);
         categoryList.setDivider(null);
