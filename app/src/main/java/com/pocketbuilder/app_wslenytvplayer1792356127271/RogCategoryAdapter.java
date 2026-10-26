@@ -90,6 +90,25 @@ final class RogCategoryAdapter extends BaseAdapter {
         row.setMaxLines(2);
         row.setEllipsize(android.text.TextUtils.TruncateAt.END);
         row.setContentDescription(category + ": " + total + " canales");
+        row.setFocusable(true);
+        row.setClickable(true);
+        final boolean rowChosen = chosen;
+        row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus) {
+                    v.setBackground(RogStyle.categoryRowFocused(ctx));
+                    ((TextView) v).setTextColor(0xFFFFFFFF);
+                } else {
+                    v.setBackground(RogStyle.categoryRow(ctx, rowChosen));
+                    ((TextView) v).setTextColor(rowChosen ? 0xFFFFFFFF : RogStyle.TEXT_DIM);
+                }
+            }
+        });
+        if (row.isFocused()) {
+            row.setBackground(RogStyle.categoryRowFocused(ctx));
+            row.setTextColor(0xFFFFFFFF);
+        }
         return row;
     }
 }

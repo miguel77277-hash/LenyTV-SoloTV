@@ -62,6 +62,24 @@ final class RogChannelAdapter extends BaseAdapter {
             card.setGravity(Gravity.CENTER_HORIZONTAL);
             card.setPadding(Ui.dpi(ctx, 8), Ui.dpi(ctx, 10), Ui.dpi(ctx, 8), Ui.dpi(ctx, 10));
             card.setBackground(RogStyle.channelCard(ctx));
+            card.setFocusable(true);
+            card.setFocusableInTouchMode(false);
+            card.setClickable(true);
+            card.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    v.setBackground(hasFocus
+                            ? RogStyle.channelCardFocused(ctx)
+                            : RogStyle.channelCard(ctx));
+                    if (hasFocus) {
+                        v.setScaleX(1.06f);
+                        v.setScaleY(1.06f);
+                    } else {
+                        v.setScaleX(1f);
+                        v.setScaleY(1f);
+                    }
+                }
+            });
 
             logo = new ImageView(ctx);
             logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -94,6 +112,16 @@ final class RogChannelAdapter extends BaseAdapter {
         logo.setImageDrawable(null);
         LogoLoader.load(ctx, channel.logo, logo, visible);
         card.setContentDescription(visible);
+        // Por si la vista se reutiliza: mantener brillo si sigue con foco
+        if (card.isFocused()) {
+            card.setBackground(RogStyle.channelCardFocused(ctx));
+            card.setScaleX(1.06f);
+            card.setScaleY(1.06f);
+        } else {
+            card.setBackground(RogStyle.channelCard(ctx));
+            card.setScaleX(1f);
+            card.setScaleY(1f);
+        }
         return card;
     }
 }

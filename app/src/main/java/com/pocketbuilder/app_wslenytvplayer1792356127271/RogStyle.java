@@ -112,4 +112,28 @@ final class RogStyle {
         g.setCornerRadius(Ui.dpi(ctx, 14));
         return g;
     }
+
+    /**
+     * Tarjeta con FOCO del mando: borde cian brillante y relleno más claro
+     * para distinguir en qué canal está el cursor.
+     */
+    static Drawable channelCardFocused(Context ctx) {
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.RECTANGLE);
+        g.setColor(0xF0204060);
+        int stroke = Math.max(3, Ui.dpi(ctx, 3));
+        g.setStroke(stroke, 0xFF00F0FF);
+        g.setCornerRadius(Ui.dpi(ctx, 14));
+        return g;
+    }
+
+    /** Categoría con foco del mando (además de la seleccionada). */
+    static Drawable categoryRowFocused(Context ctx) {
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.RECTANGLE);
+        g.setColor(0xFF0A5080);
+        g.setStroke(Math.max(2, Ui.dpi(ctx, 2)), 0xFF00F0FF);
+        g.setCornerRadius(Ui.dpi(ctx, 18));
+        return g;
+    }
 }

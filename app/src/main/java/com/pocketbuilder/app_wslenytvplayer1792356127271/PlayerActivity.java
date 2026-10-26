@@ -1464,9 +1464,11 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
     // --------------------------------------------------------------- mando / TV box
 
     /**
-     * En móvil los controles salen al tocar. En TV box no hay toque: el mando
-     * envía teclas. Aquí se muestran los controles y se interpretan play/pausa,
-     * canal anterior/siguiente y atrás, sin cambiar el motor ni el resto de la UI.
+     * En móvil los controles salen al tocar. En TV box el mando envía teclas.
+     * Primera pulsación: solo MUESTRA la barra (no pausa).
+     * OK/Enter: lo recibe el botón con foco (play, siguiente, lista…).
+     * Teclas multimedia: play/pausa o cambio de canal.
+     * Atrás: oculta barra o sale del reproductor.
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
@@ -1474,12 +1476,10 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         int action = event.getAction();
         int key = event.getKeyCode();
 
-        // Paneles abiertos: comportamiento normal (lista, ajustes…)
         if (isPanelOpen()) {
             return super.dispatchKeyEvent(event);
         }
         if (locked) {
-            // Con bloqueo solo se permite desbloquear con BACK (igual espíritu que toque)
             if (action == KeyEvent.ACTION_UP
                     && (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_ESCAPE)) {
                 toggleLock();
@@ -1488,21 +1488,25 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             return super.dispatchKeyEvent(event);
         }
 
-        if (action == KeyEvent.ACTION_DOWN) {
-            // Cualquier tecla útil del mando muestra la barra si estaba oculta
-            if (isRemoteNavKey(key) && !controlsVisible) {
-                setControlsVisible(true);
-                focusPlayerControls();
-                // No consumir DPAD: el sistema puede mover el foco al botón
-                if (key == KeyEvent.KEYCODE_DPAD_CENTER
-                        || key == KeyEvent.KEYCODE_ENTER
-                        || key == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
-                        || key == KeyEvent.KEYCODE_MEDIA_PLAY
-                        || key == KeyEvent.KEYCODE_MEDIA_PAUSE
-                        || key == KeyEvent.KEYCODE_SPACE) {
-                    // Se gestiona en ACTION_UP para no duplicar
-                }
-                scheduleHide();
+        // Controles ocultos: cualquier tecla de navegación solo los muestra.
+        // No se pausa ni se cambia de canal en esta primera pulsación.
+        if (!controlsVisible && action == KeyEvent.ACTION_DOWN && isRemoteNavKey(key)) {
+            setControlsVisible(true);
+            focusPlayerControls();
+            scheduleHide();
+            // Consumir OK/Enter/espacio para que NO activen play en el mismo toque
+            if (key == KeyEvent.KEYCODE_DPAD_CENTER
+                    || key == KeyEvent.KEYCODE_ENTER
+                    || key == KeyEvent.KEYCODE_NUMPAD_ENTER
+                    || key == KeyEvent.KEYCODE_SPACE) {
+                return true;
+            }
+            // Flechas: dejar pasar para mover el foco tras mostrar la barra
+            if (key == KeyEvent.KEYCODE_DPAD_UP
+                    || key == KeyEvent.KEYCODE_DPAD_DOWN
+                    || key == KeyEvent.KEYCODE_DPAD_LEFT
+                    || key == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                return super.dispatchKeyEvent(event);
             }
         }
 
@@ -1516,37 +1520,35 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                     }
                     finish();
                     return true;
-                case KeyEvent.KEYCODE_DPAD_CENTER:
-                case KeyEvent.KEYCODE_ENTER:
-                case KeyEvent.KEYCODE_SPACE:
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                    if (!controlsVisible) {
-                        setControlsVisible(true);
-                        focusPlayerControls();
-                    }
+                    setControlsVisible(true);
                     togglePlay();
                     scheduleHide();
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_PLAY:
-                    if (media3 != null && !media3.isPlaying()) togglePlay();
                     setControlsVisible(true);
+                    if (media3 != null && !media3.isPlaying()) {
+                        togglePlay();
+                    }
                     scheduleHide();
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                    if (media3 != null && media3.isPlaying()) togglePlay();
                     setControlsVisible(true);
+                    if (media3 != null && media3.isPlaying()) {
+                        togglePlay();
+                    }
                     scheduleHide();
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_NEXT:
                 case KeyEvent.KEYCODE_CHANNEL_UP:
-                    stepChannel(1);
                     setControlsVisible(true);
+                    stepChannel(1);
                     scheduleHide();
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
                 case KeyEvent.KEYCODE_CHANNEL_DOWN:
-                    stepChannel(-1);
                     setControlsVisible(true);
+                    stepChannel(-1);
                     scheduleHide();
                     return true;
                 default:
@@ -1554,6 +1556,11 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             }
         }
 
+        // Controles visibles: OK/Enter/DPAD van al sistema (foco en botones).
+        // No forzar togglePlay aquí.
+        if (controlsVisible && action == KeyEvent.ACTION_DOWN) {
+            scheduleHide();
+        }
         return super.dispatchKeyEvent(event);
     }
 
@@ -1565,6 +1572,7 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             case KeyEvent.KEYCODE_DPAD_RIGHT:
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
             case KeyEvent.KEYCODE_SPACE:
             case KeyEvent.KEYCODE_MENU:
             case KeyEvent.KEYCODE_INFO:
@@ -1585,8 +1593,10 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     private void focusPlayerControls() {
         try {
-            View target = playButton != null ? playButton
-                    : (bottomBar != null ? bottomBar : topBar);
+            // No enfocar el botón play: si no, OK pausaría al abrir la barra.
+            // El foco va a la barra inferior; el usuario mueve el DPAD hasta play.
+            View target = bottomBar != null ? bottomBar
+                    : (topBar != null ? topBar : playButton);
             if (target != null) {
                 target.setFocusable(true);
                 target.setFocusableInTouchMode(true);
