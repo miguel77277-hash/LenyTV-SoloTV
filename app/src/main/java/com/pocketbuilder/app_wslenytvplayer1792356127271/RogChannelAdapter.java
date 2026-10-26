@@ -77,19 +77,16 @@ final class RogChannelAdapter extends BaseAdapter {
             card.setFocusable(true);
             card.setFocusableInTouchMode(false);
             card.setClickable(true);
+            card.setMinimumHeight(Ui.dpi(ctx, 100));
             card.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
                     v.setBackground(hasFocus
                             ? RogStyle.channelCardFocused(ctx)
                             : RogStyle.channelCard(ctx));
-                    if (hasFocus) {
-                        v.setScaleX(1.06f);
-                        v.setScaleY(1.06f);
-                    } else {
-                        v.setScaleX(1f);
-                        v.setScaleY(1f);
-                    }
+                    // Sin scale: en TV las filas de abajo se veían más planas
+                    v.setScaleX(1f);
+                    v.setScaleY(1f);
                 }
             });
 
@@ -99,8 +96,11 @@ final class RogChannelAdapter extends BaseAdapter {
             logo.setFocusable(false);
             logo.setBackground(RogStyle.logoBox(ctx));
             logo.setPadding(Ui.dpi(ctx, 6), Ui.dpi(ctx, 6), Ui.dpi(ctx, 6), Ui.dpi(ctx, 6));
-            card.addView(logo, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, Ui.dpi(ctx, 52)));
+            // Tamaño FIJO del logo: todas las tarjetas iguales (evita filas "planas")
+            int logoSize = Ui.dpi(ctx, 52);
+            LinearLayout.LayoutParams logoLp = new LinearLayout.LayoutParams(logoSize, logoSize);
+            logoLp.gravity = Gravity.CENTER_HORIZONTAL;
+            card.addView(logo, logoLp);
 
             name = new TextView(ctx);
             name.setTextSize(9.5f);
@@ -127,14 +127,12 @@ final class RogChannelAdapter extends BaseAdapter {
         LogoLoader.load(ctx, channel.logo, logo, visible);
         card.setContentDescription(visible);
         // Por si la vista se reutiliza: mantener brillo si sigue con foco
+        card.setScaleX(1f);
+        card.setScaleY(1f);
         if (card.isFocused()) {
             card.setBackground(RogStyle.channelCardFocused(ctx));
-            card.setScaleX(1.06f);
-            card.setScaleY(1.06f);
         } else {
             card.setBackground(RogStyle.channelCard(ctx));
-            card.setScaleX(1f);
-            card.setScaleY(1f);
         }
         // Clic táctil y OK del mando: abrir reproductor (no depende solo del GridView)
         final Channel toOpen = channel;

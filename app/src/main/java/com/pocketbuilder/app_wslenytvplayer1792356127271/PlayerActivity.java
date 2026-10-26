@@ -3096,49 +3096,15 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     // ------------------------------------------------------------------ panel de canales
 
-    /** Reintentos limitados para no cerrar la app por bucles de foco. */
-    private int drawerFocusRetries = 0;
-
-    /** Lleva el foco del mando a una fila visible y asegura que se vea al hacer scroll. */
+    /** Solo selección + scroll; sin reintentos en bucle (evita cierre de la app). */
     private void focusDrawerRow(final int position) {
         if (drawerList == null || position < 0) return;
-        drawerList.post(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    int first = drawerList.getFirstVisiblePosition();
-                    int childIndex = position - first;
-                    if (childIndex >= 0 && childIndex < drawerList.getChildCount()) {
-                        View child = drawerList.getChildAt(childIndex);
-                        if (child != null) {
-                            drawerFocusRetries = 0;
-                            child.requestFocus();
-                            drawerList.requestChildRectangleOnScreen(child,
-                                    new android.graphics.Rect(0, 0, child.getWidth(), child.getHeight()),
-                                    false);
-                        }
-                    } else {
-                        // Máximo 5 reintentos: evita stack/loop que cerraba la app
-                        if (drawerFocusRetries >= 5) {
-                            drawerFocusRetries = 0;
-                            drawerList.setSelection(position);
-                            return;
-                        }
-                        drawerFocusRetries++;
-                        drawerList.setSelection(position);
-                        drawerList.smoothScrollToPosition(position);
-                        drawerList.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                focusDrawerRow(position);
-                            }
-                        });
-                    }
-                } catch (Throwable ignored) {
-                    drawerFocusRetries = 0;
-                }
-            }
-        });
+        try {
+            if (position >= drawerPositions.size()) return;
+            drawerList.setSelection(position);
+            drawerList.smoothScrollToPosition(position);
+        } catch (Throwable ignored) {
+        }
     }
 
     private void openDrawer() {
@@ -3316,10 +3282,11 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                         name.setTextColor(0xFFFFFFFF);
                         // Al bajar con el mando, la lista debe desplazarse
                         if (drawerList != null) {
-                            drawerList.smoothScrollToPosition(listPosFocus);
-                            drawerList.requestChildRectangleOnScreen(v,
-                                    new android.graphics.Rect(0, 0, v.getWidth(), v.getHeight()),
-                                    false);
+                            try {
+                                drawerList.setSelection(listPosFocus);
+                                drawerList.smoothScrollToPosition(listPosFocus);
+                            } catch (Throwable ignored) {
+                            }
                         }
                     } else {
                         v.setBackground(Ui.roundedStroke(PlayerActivity.this,
