@@ -3357,6 +3357,17 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                         0xCC00A8E8, 0xFF00F0FF, 2.5f, 8f));
                 name.setTextColor(0xFFFFFFFF);
             }
+            // Táctil: la fila es clickable y debe abrir el canal (OnItemClick del
+            // ListView no llega si el hijo consume el toque).
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    int target = channelIndexFinal;
+                    if (target < 0) return;
+                    closeDrawer();
+                    playIndex(target);
+                }
+            });
             return row;
         }
     }
