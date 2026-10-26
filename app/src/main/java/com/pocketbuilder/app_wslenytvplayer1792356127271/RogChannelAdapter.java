@@ -93,6 +93,8 @@ final class RogChannelAdapter extends BaseAdapter {
 
             logo = new ImageView(ctx);
             logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            logo.setClickable(false);
+            logo.setFocusable(false);
             logo.setBackground(RogStyle.logoBox(ctx));
             logo.setPadding(Ui.dpi(ctx, 6), Ui.dpi(ctx, 6), Ui.dpi(ctx, 6), Ui.dpi(ctx, 6));
             card.addView(logo, new LinearLayout.LayoutParams(
@@ -134,10 +136,20 @@ final class RogChannelAdapter extends BaseAdapter {
         }
         // Clic táctil y OK del mando: abrir reproductor (no depende solo del GridView)
         final Channel toOpen = channel;
+        final int pos = position;
         card.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (action != null) action.onOpen(toOpen);
+                if (action != null) {
+                    action.onOpen(toOpen);
+                    return;
+                }
+                // Respaldo: avisar al GridView por si no hay callback
+                if (parent instanceof android.widget.AdapterView) {
+                    android.widget.AdapterView<?> av =
+                            (android.widget.AdapterView<?>) parent;
+                    av.performItemClick(v, pos, getItemId(pos));
+                }
             }
         });
         return card;

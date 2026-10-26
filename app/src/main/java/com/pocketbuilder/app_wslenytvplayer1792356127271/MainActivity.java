@@ -664,6 +664,12 @@ public final class MainActivity extends android.app.Activity {
         contentArea = content;
 
         channelAdapter = new RogChannelAdapter(this, shown);
+        channelAdapter.setOnChannelAction(new RogChannelAdapter.OnChannelAction() {
+            @Override
+            public void onOpen(Channel channel) {
+                if (channel != null) openPlayer(channel);
+            }
+        });
         grid = new GridView(this);
         grid.setAdapter(channelAdapter);
         grid.setNumColumns(6);
