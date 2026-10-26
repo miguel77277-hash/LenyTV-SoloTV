@@ -673,7 +673,8 @@ public final class MainActivity extends android.app.Activity {
         grid.setPadding(Ui.dpi(this, 12), Ui.dpi(this, 10), Ui.dpi(this, 12), Ui.dpi(this, 10));
         grid.setClipToPadding(false);
         grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
-        grid.setItemsCanFocus(true);
+        // Foco del mando en cada tarjeta (RogChannelAdapter); la cuadrícula
+        // deja pasar el foco a sus hijos.
         grid.setFocusable(true);
         grid.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
