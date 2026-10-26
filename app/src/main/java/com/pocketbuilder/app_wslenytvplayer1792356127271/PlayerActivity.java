@@ -3096,6 +3096,9 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     // ------------------------------------------------------------------ panel de canales
 
+    /** Reintentos limitados para no cerrar la app por bucles de foco. */
+    private int drawerFocusRetries = 0;
+
     /** Lleva el foco del mando a una fila visible y asegura que se vea al hacer scroll. */
     private void focusDrawerRow(final int position) {
         if (drawerList == null || position < 0) return;
@@ -3108,12 +3111,21 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                     if (childIndex >= 0 && childIndex < drawerList.getChildCount()) {
                         View child = drawerList.getChildAt(childIndex);
                         if (child != null) {
+                            drawerFocusRetries = 0;
                             child.requestFocus();
                             drawerList.requestChildRectangleOnScreen(child,
                                     new android.graphics.Rect(0, 0, child.getWidth(), child.getHeight()),
                                     false);
                         }
                     } else {
+                        // Máximo 5 reintentos: evita stack/loop que cerraba la app
+                        if (drawerFocusRetries >= 5) {
+                            drawerFocusRetries = 0;
+                            drawerList.setSelection(position);
+                            return;
+                        }
+                        drawerFocusRetries++;
+                        drawerList.setSelection(position);
                         drawerList.smoothScrollToPosition(position);
                         drawerList.post(new Runnable() {
                             @Override
@@ -3123,6 +3135,7 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                         });
                     }
                 } catch (Throwable ignored) {
+                    drawerFocusRetries = 0;
                 }
             }
         });

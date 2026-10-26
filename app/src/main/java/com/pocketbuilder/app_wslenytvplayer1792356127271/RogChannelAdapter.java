@@ -3,6 +3,8 @@ package com.pocketbuilder.app_wslenytvplayer1792356127271;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.KeyEvent;
+import android.widget.GridView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -144,12 +146,49 @@ final class RogChannelAdapter extends BaseAdapter {
                     action.onOpen(toOpen);
                     return;
                 }
-                // Respaldo: avisar al GridView por si no hay callback
                 if (parent instanceof android.widget.AdapterView) {
                     android.widget.AdapterView<?> av =
                             (android.widget.AdapterView<?>) parent;
                     av.performItemClick(v, pos, getItemId(pos));
                 }
+            }
+        });
+        // Mando TV: mover foco y hacer scroll de la cuadrícula (no solo entre celdas visibles)
+        card.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+                if (!(parent instanceof GridView)) return false;
+                final GridView g = (GridView) parent;
+                int cols = g.getNumColumns();
+                if (cols <= 0) cols = 1;
+                int count = getCount();
+                int next = pos;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) next = pos + cols;
+                else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) next = pos - cols;
+                else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) next = pos + 1;
+                else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) next = pos - 1;
+                else return false;
+                if (next < 0 || next >= count) return true;
+                g.setSelection(next);
+                g.smoothScrollToPosition(next);
+                g.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            int first = g.getFirstVisiblePosition();
+                            int idx = next - first;
+                            if (idx >= 0 && idx < g.getChildCount()) {
+                                View child = g.getChildAt(idx);
+                                if (child != null) child.requestFocus();
+                            } else {
+                                g.smoothScrollToPosition(next);
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                });
+                return true;
             }
         });
         return card;
