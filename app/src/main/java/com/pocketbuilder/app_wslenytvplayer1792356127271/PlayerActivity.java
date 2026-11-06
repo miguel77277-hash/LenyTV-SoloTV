@@ -1424,46 +1424,37 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         drawerList.setDivider(null);
         drawerList.setDividerHeight(Ui.dpi(this, 4));
         drawerList.setFocusable(true);
-        drawerList.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-        try { drawerList.setItemsCanFocus(true); } catch (Throwable ignored) {}
+        drawerList.setFocusableInTouchMode(true);
+        drawerList.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        try { drawerList.setItemsCanFocus(false); } catch (Throwable ignored) {}
         drawerList.setSmoothScrollbarEnabled(true);
         drawerList.setOnKeyListener(new View.OnKeyListener() {
             @Override
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
-                if (keyCode != KeyEvent.KEYCODE_DPAD_DOWN && keyCode != KeyEvent.KEYCODE_DPAD_UP) {
-                    return false;
+                if (event.getRepeatCount() > 0) return true; // no saltos por mantener pulsado
+                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    moveDrawerSelection(1);
+                    return true;
                 }
-                int pos = drawerList.getSelectedItemPosition();
-                if (pos < 0) {
-                    View focused = drawerList.findFocus();
-                    if (focused != null) {
-                        for (int i = 0; i < drawerList.getChildCount(); i++) {
-                            if (drawerList.getChildAt(i) == focused
-                                    || (drawerList.getChildAt(i) instanceof ViewGroup
-                                    && ((ViewGroup) drawerList.getChildAt(i)).indexOfChild(focused) >= 0)) {
-                                pos = drawerList.getFirstVisiblePosition() + i;
-                                break;
-                            }
-                        }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    if (drawerSelectedPos <= 0 && drawerSectionRow != null
+                            && drawerSectionRow.getChildCount() > 0) {
+                        View chip = drawerSectionRow.getChildAt(0);
+                        if (chip != null) chip.requestFocus();
+                        return true;
                     }
-                }
-                if (pos < 0) pos = 0;
-                int count = drawerAdapter == null ? 0 : drawerAdapter.getCount();
-                if (count <= 0) return false;
-                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && pos < count - 1) {
-                    focusDrawerRow(pos + 1);
+                    moveDrawerSelection(-1);
                     return true;
                 }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_UP && pos > 0) {
-                    focusDrawerRow(pos - 1);
-                    return true;
-                }
-                // Desde el primer canal, arriba vuelve a apartados
-                if (keyCode == KeyEvent.KEYCODE_DPAD_UP && pos <= 0
-                        && drawerSectionRow != null && drawerSectionRow.getChildCount() > 0) {
-                    View chip = drawerSectionRow.getChildAt(0);
-                    if (chip != null) chip.requestFocus();
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                        || keyCode == KeyEvent.KEYCODE_ENTER
+                        || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                    int target = channelIndexAt(drawerSelectedPos);
+                    if (target >= 0) {
+                        closeDrawer();
+                        playIndex(target);
+                    }
                     return true;
                 }
                 return false;
@@ -3117,37 +3108,33 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     // ------------------------------------------------------------------ panel de canales
 
-    /**
-     * Mueve el seleccionador del panel al canal indicado.
-     * El resaltado sigue al índice (no depende solo del foco de Android).
-     */
+    /** Un solo seleccionador: un paso = un canal. */
     private void focusDrawerRow(final int position) {
         if (drawerList == null || position < 0) return;
         if (position >= drawerPositions.size()) return;
+        if (position == drawerSelectedPos) {
+            // Ya está ahí: solo asegurar scroll
+            try {
+                drawerList.smoothScrollToPosition(position);
+            } catch (Throwable ignored) {
+            }
+            return;
+        }
         drawerSelectedPos = position;
         try {
             if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
             drawerList.setSelection(position);
             drawerList.smoothScrollToPosition(position);
-            drawerList.post(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        int first = drawerList.getFirstVisiblePosition();
-                        int idx = position - first;
-                        if (idx >= 0 && idx < drawerList.getChildCount()) {
-                            View child = drawerList.getChildAt(idx);
-                            if (child != null) {
-                                child.setFocusable(true);
-                                child.requestFocus();
-                            }
-                        }
-                    } catch (Throwable ignored) {
-                    }
-                }
-            });
         } catch (Throwable ignored) {
         }
+    }
+
+    private void moveDrawerSelection(int delta) {
+        if (drawerPositions.isEmpty()) return;
+        int next = drawerSelectedPos + delta;
+        if (next < 0) next = 0;
+        if (next >= drawerPositions.size()) next = drawerPositions.size() - 1;
+        focusDrawerRow(next);
     }
 
     private void openDrawer() {
@@ -3220,9 +3207,8 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                     if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                         if (drawerList != null) {
                             drawerList.requestFocus();
-                            int sel = drawerList.getSelectedItemPosition();
-                            if (sel < 0) sel = 0;
-                            focusDrawerRow(sel);
+                            if (drawerSelectedPos < 0) drawerSelectedPos = 0;
+                            focusDrawerRow(drawerSelectedPos);
                             return true;
                         }
                     }
@@ -3355,81 +3341,34 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             final boolean isCurrent = channelIndex == index;
             final boolean isSelected = position == drawerSelectedPos;
             final int channelIndexFinal = channelIndex;
-            name.setTextColor((isSelected || isCurrent) ? 0xFFFFFFFF : Ui.TEXT);
-            // Resaltado del mando = drawerSelectedPos; el canal en emisión sigue en rojo suave
+            // UN solo seleccionador (cian). El canal en emisión solo cambia el subtítulo.
+            name.setTextColor(isSelected ? 0xFFFFFFFF : Ui.TEXT);
             if (isSelected) {
                 row.setBackground(Ui.roundedStroke(PlayerActivity.this,
                         0xCC00A8E8, 0xFF00F0FF, 2.5f, 8f));
-            } else if (isCurrent) {
-                row.setBackground(Ui.roundedStroke(PlayerActivity.this,
-                        0x99E13A2B, Ui.RED, 1f, 8f));
             } else {
                 row.setBackground(Ui.roundedStroke(PlayerActivity.this,
                         0x5A14141C, 0x55242433, 1f, 8f));
             }
+            if (isCurrent && !isSelected) {
+                category.setTextColor(Ui.RED);
+            } else {
+                category.setTextColor(Ui.TEXT_MUTED);
+            }
             LogoLoader.load(PlayerActivity.this, channel.logo, logo, visibleName);
-            row.setFocusable(true);
+            // Sin foco por fila: un solo seleccionador controlado por drawerSelectedPos
+            row.setFocusable(false);
             row.setClickable(true);
             row.setFocusableInTouchMode(false);
-            // Brillo fuerte solo con foco del mando (el táctil sigue igual vía OnItemClick)
-            final int listPosFocus = position;
-            row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    if (hasFocus && listPosFocus != drawerSelectedPos) {
-                        drawerSelectedPos = listPosFocus;
-                        if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
-                    }
-                }
-            });
-            final int listPos = position;
-            row.setOnKeyListener(new View.OnKeyListener() {
-                @Override
-                public boolean onKey(View v, int keyCode, KeyEvent event) {
-                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-                                && listPos < drawerPositions.size() - 1) {
-                            int next = listPos + 1;
-                            drawerList.setSelection(next);
-                            drawerList.smoothScrollToPosition(next);
-                            focusDrawerRow(next);
-                            return true;
-                        }
-                        if (keyCode == KeyEvent.KEYCODE_DPAD_UP && listPos > 0) {
-                            int prev = listPos - 1;
-                            drawerList.setSelection(prev);
-                            drawerList.smoothScrollToPosition(prev);
-                            focusDrawerRow(prev);
-                            return true;
-                        }
-                    }
-                    if (event.getAction() != KeyEvent.ACTION_UP) return false;
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
-                            || keyCode == KeyEvent.KEYCODE_ENTER
-                            || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                        if (drawerList != null) {
-                            drawerList.performItemClick(v, listPos, listPos);
-                        } else {
-                            playIndex(channelIndexFinal);
-                            closeDrawer();
-                        }
-                        return true;
-                    }
-                    return false;
-                }
-            });
-            if (row.isFocused()) {
-                row.setBackground(Ui.roundedStroke(PlayerActivity.this,
-                        0xCC00A8E8, 0xFF00F0FF, 2.5f, 8f));
-                name.setTextColor(0xFFFFFFFF);
-            }
-            // Táctil: la fila es clickable y debe abrir el canal (OnItemClick del
-            // ListView no llega si el hijo consume el toque).
+            row.setOnFocusChangeListener(null);
+            row.setOnKeyListener(null);
+            // Táctil
             row.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     int target = channelIndexFinal;
                     if (target < 0) return;
+                    drawerSelectedPos = position;
                     closeDrawer();
                     playIndex(target);
                 }
