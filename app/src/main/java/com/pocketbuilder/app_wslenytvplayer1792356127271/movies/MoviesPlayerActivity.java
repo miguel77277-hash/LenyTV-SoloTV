@@ -1033,6 +1033,34 @@ public final class MoviesPlayerActivity extends Activity implements SurfaceHolde
         }
     }
 
+    private void showAudioPicker() {
+        if (media3 == null) {
+            Toast.makeText(this, "Reproductor no listo", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        java.util.ArrayList<String> labels = media3.listAudioTrackLabels();
+        if (labels == null || labels.isEmpty()) {
+            Toast.makeText(this, "No hay pistas de audio para elegir", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String[] items = labels.toArray(new String[0]);
+        android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(this);
+        b.setTitle("Elegir audio");
+        b.setItems(items, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                if (media3 != null) media3.selectAudioTrack(which);
+                Toast.makeText(MoviesPlayerActivity.this,
+                        "Audio: " + items[which], Toast.LENGTH_SHORT).show();
+            }
+        });
+        b.setNegativeButton("Cerrar", null);
+        try {
+            b.show();
+        } catch (Throwable ignored) {
+        }
+    }
+
     /** Superficie que respeta el modo de imagen elegido en los ajustes del módulo. */
     private final class VideoSurface extends SurfaceView {
 

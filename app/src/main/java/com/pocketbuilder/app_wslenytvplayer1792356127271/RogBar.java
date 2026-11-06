@@ -50,6 +50,8 @@ final class RogBar {
         void onSettings();
 
         void onPower();
+
+        void onMovies();
     }
 
     private RogBar() {
