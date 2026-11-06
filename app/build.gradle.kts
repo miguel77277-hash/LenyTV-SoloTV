@@ -10,8 +10,8 @@ android {
         applicationId = "com.pocketbuilder.app_wslenytvplayer1792356127271"
         minSdk = 29
         targetSdk = 34
-        versionCode = 109
-        versionName = "1.109-compile-fix"
+        versionCode = 110
+        versionName = "1.110-movies-ui"
     }
 
     buildTypes {

@@ -94,7 +94,7 @@ public final class MoviesActivity extends Activity {
     private final ArrayList<MovieItem> shownItems = new ArrayList<MovieItem>();
 
     private LinearLayout chipsRow;
-    private GridView grid;
+    private GridView grid; // legado; la UI nueva usa filas
     private PosterAdapter adapter;
     private LinearLayout emptyBox;
     private LinearLayout loadingBox;
@@ -103,12 +103,23 @@ public final class MoviesActivity extends Activity {
     private EditText searchField;
     private EditText quickField;
     private TextView summaryView;
+    /** Contenedor de filas horizontales (Destacadas, géneros…). */
+    private LinearLayout rowsContainer;
+    private ScrollView catalogScroll;
+    private FrameLayout heroBox;
+    private ImageView heroPoster;
+    private TextView heroTitle;
+    private TextView heroPlot;
+    private TextView heroBadge;
+    private LinearLayout sidebar;
+    private String sidebarSection = "movies";
+    private MovieItem featured;
     /** Último informe de fuentes (se enseña en el panel de ajustes). */
     private String summaryText = "";
     /** Panel de ajustes de la pantalla (listas, enlaces y ajustes del módulo). */
     private Dialog toolsDialog;
 
-    private String selectedKind = "";
+    private String selectedKind = MovieItem.KIND_MOVIE;
     private String selectedGenre = "";
     private String searchText = "";
     private boolean loading = false;
@@ -224,82 +235,293 @@ public final class MoviesActivity extends Activity {
     // ------------------------------------------------------------------ dibujo
 
     private void buildUi() {
-        FrameLayout root = new FrameLayout(this);
-        RogStyle.applyBackdrop(this, root);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.HORIZONTAL);
+        root.setBackgroundColor(0xFF0B0D14);
 
+        // ----- barra lateral -----
+        sidebar = new LinearLayout(this);
+        sidebar.setOrientation(LinearLayout.VERTICAL);
+        sidebar.setBackgroundColor(0xFF0A0C12);
+        sidebar.setPadding(dpi(10), dpi(16), dpi(10), dpi(16));
+        sidebar.addView(sideItem("Inicio", "home", false));
+        sidebar.addView(sideItem("Películas", "movies", true));
+        sidebar.addView(sideItem("Series", "series", false));
+        sidebar.addView(sideItem("Favoritos", "fav", false));
+        sidebar.addView(sideItem("Historial", "hist", false));
+        sidebar.addView(sideItem("Ajustes", "settings", false));
+        root.addView(sidebar, new LinearLayout.LayoutParams(dpi(118),
+                LinearLayout.LayoutParams.MATCH_PARENT));
+
+        // ----- columna principal -----
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setPadding(dpi(10), dpi(8), dpi(10), dpi(6));
-        root.addView(column, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        column.addView(buildHeader(), new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        // El buscador y los filtros se quedan a la vista (es lo que más se usa).
-        // Todo lo demás (añadir listas, Xtream, Enlaces, actualizar y ajustes del
-        // módulo) vive en el panel del botón de ajustes de la esquina superior.
-        column.addView(buildSearchRow(), new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        column.addView(buildChips(), new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        FrameLayout content = new FrameLayout(this);
-        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-        contentParams.topMargin = dpi(6);
-        column.addView(content, contentParams);
-
-        grid = new GridView(this);
-        grid.setNumColumns(GridView.AUTO_FIT);
-        grid.setColumnWidth(dpi(112));
-        grid.setHorizontalSpacing(dpi(8));
-        grid.setVerticalSpacing(dpi(10));
-        grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
-        grid.setPadding(dpi(2), dpi(2), dpi(2), dpi(8));
-        grid.setClipToPadding(false);
-        grid.setVerticalScrollBarEnabled(false);
-        grid.setSelector(Ui.buttonBg(this, 0x00000000, 0x33FFFFFF, 0x00000000, 8f));
-        grid.setFocusable(true);
-        adapter = new PosterAdapter(this, shownItems);
-        grid.setAdapter(adapter);
-        grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        // Cabecera Leny TV | Películas
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setPadding(dpi(16), dpi(10), dpi(12), dpi(8));
+        TextView brand = Ui.text(this, "Leny TV", 16f, 0xFF00D4FF, true);
+        top.addView(brand);
+        TextView sep = Ui.text(this, "  |  ", 14f, 0xFF556070, false);
+        top.addView(sep);
+        TextView mod = Ui.text(this, "Películas", 15f, 0xFFFFFFFF, true);
+        top.addView(mod);
+        View spacer = new View(this);
+        top.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
+        TextView tvBtn = Ui.text(this, "TV", 12f, 0xFFAABBCC, true);
+        tvBtn.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
+        tvBtn.setBackground(rounded(0x22FFFFFF, 10f));
+        tvBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (position < 0 || position >= shownItems.size()) return;
-                showDetail(shownItems.get(position));
+            public void onClick(View v) {
+                finish();
             }
         });
-        content.addView(grid, new FrameLayout.LayoutParams(
+        top.addView(tvBtn);
+        TextView gear = Ui.iconButton(this, Icons.gear(this, 0xFFE8EEF8), "Ajustes", 42f);
+        gear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showToolsPanel();
+            }
+        });
+        LinearLayout.LayoutParams gearLp = new LinearLayout.LayoutParams(dpi(42), dpi(42));
+        gearLp.leftMargin = dpi(8);
+        top.addView(gear, gearLp);
+        column.addView(top, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Búsqueda compacta
+        LinearLayout searchRow = new LinearLayout(this);
+        searchRow.setOrientation(LinearLayout.HORIZONTAL);
+        searchRow.setPadding(dpi(16), 0, dpi(16), dpi(6));
+        searchField = new EditText(this);
+        searchField.setHint("Buscar película o serie");
+        searchField.setHintTextColor(0xFF667788);
+        searchField.setTextColor(0xFFE8EEF8);
+        searchField.setBackground(rounded(0x22182028, 10f));
+        searchField.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
+        searchField.setSingleLine(true);
+        searchField.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                searchText = s == null ? "" : s.toString().trim().toLowerCase(Locale.US);
+                applyFilter();
+            }
+        });
+        searchRow.addView(searchField, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        column.addView(searchRow);
+
+        FrameLayout content = new FrameLayout(this);
+
+        catalogScroll = new ScrollView(this);
+        catalogScroll.setFillViewport(true);
+        LinearLayout scrollInner = new LinearLayout(this);
+        scrollInner.setOrientation(LinearLayout.VERTICAL);
+        scrollInner.setPadding(dpi(12), dpi(4), dpi(12), dpi(20));
+
+        // Hero destacado
+        heroBox = new FrameLayout(this);
+        heroBox.setMinimumHeight(dpi(200));
+        heroBox.setBackground(rounded(0xFF121820, 14f));
+        heroPoster = new ImageView(this);
+        heroPoster.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        heroBox.addView(heroPoster, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, dpi(210)));
+        View scrim = new View(this);
+        scrim.setBackgroundColor(0x99000000);
+        heroBox.addView(scrim, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, dpi(210)));
+        LinearLayout heroText = new LinearLayout(this);
+        heroText.setOrientation(LinearLayout.VERTICAL);
+        heroText.setPadding(dpi(18), dpi(24), dpi(18), dpi(16));
+        heroBadge = Ui.text(this, "PELÍCULA", 10f, 0xFFFF6677, true);
+        heroText.addView(heroBadge);
+        heroTitle = Ui.text(this, "Catálogo Leny", 22f, 0xFFFFFFFF, true);
+        heroTitle.setPadding(0, dpi(4), 0, dpi(6));
+        heroText.addView(heroTitle);
+        heroPlot = Ui.text(this, "Añade listas M3U / Xtream en Ajustes para llenar el catálogo.", 12f, 0xFFCCD6E0, false);
+        heroPlot.setMaxLines(3);
+        heroText.addView(heroPlot);
+        LinearLayout heroBtns = new LinearLayout(this);
+        heroBtns.setOrientation(LinearLayout.HORIZONTAL);
+        heroBtns.setPadding(0, dpi(12), 0, 0);
+        TextView playHero = Ui.text(this, "  ▶  Reproducir  ", 13f, 0xFF001018, true);
+        playHero.setBackground(rounded(0xFF00D4FF, 10f));
+        playHero.setPadding(dpi(14), dpi(10), dpi(14), dpi(10));
+        playHero.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (featured != null) showDetail(featured);
+            }
+        });
+        heroBtns.addView(playHero);
+        TextView infoHero = Ui.text(this, "  Más info  ", 13f, 0xFFE8EEF8, true);
+        infoHero.setBackground(rounded(0x44FFFFFF, 10f));
+        infoHero.setPadding(dpi(14), dpi(10), dpi(14), dpi(10));
+        LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        infoLp.leftMargin = dpi(10);
+        infoHero.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (featured != null) showDetail(featured);
+            }
+        });
+        heroBtns.addView(infoHero, infoLp);
+        heroText.addView(heroBtns);
+        heroBox.addView(heroText, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        scrollInner.addView(heroBox, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dpi(210)));
+
+        countView = Ui.text(this, "", 11f, 0xFF8899AA, false);
+        countView.setPadding(dpi(4), dpi(10), dpi(4), dpi(4));
+        scrollInner.addView(countView);
+
+        rowsContainer = new LinearLayout(this);
+        rowsContainer.setOrientation(LinearLayout.VERTICAL);
+        scrollInner.addView(rowsContainer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        catalogScroll.addView(scrollInner);
+        content.addView(catalogScroll, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        emptyBox = buildWelcomeCard();
+        // Grid oculto solo para no romper referencias antiguas
+        grid = new GridView(this);
+        grid.setVisibility(View.GONE);
+        adapter = new PosterAdapter(this, shownItems);
+        grid.setAdapter(adapter);
+        content.addView(grid, new FrameLayout.LayoutParams(1, 1));
+
+        emptyBox = new LinearLayout(this);
+        emptyBox.setOrientation(LinearLayout.VERTICAL);
+        emptyBox.setGravity(Gravity.CENTER);
+        emptyBox.setPadding(dpi(24), dpi(24), dpi(24), dpi(24));
+        emptyBox.addView(Ui.text(this, "Sin títulos todavía", 15f, 0xFFE8EEF8, true));
+        emptyBox.addView(Ui.text(this,
+                "En Ajustes añade un enlace M3U o get.php de películas/VOD.",
+                12f, 0xFF99AABC, false));
+        TextView emptyAdd = Ui.text(this, "Abrir ajustes", 13f, 0xFF001018, true);
+        emptyAdd.setBackground(rounded(0xFF00D4FF, 10f));
+        emptyAdd.setPadding(dpi(16), dpi(10), dpi(16), dpi(10));
+        emptyAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showToolsPanel();
+            }
+        });
+        LinearLayout.LayoutParams emptyAddLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        emptyAddLp.topMargin = dpi(14);
+        emptyBox.addView(emptyAdd, emptyAddLp);
         emptyBox.setVisibility(View.GONE);
         content.addView(emptyBox, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER));
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         loadingBox = new LinearLayout(this);
         loadingBox.setOrientation(LinearLayout.VERTICAL);
         loadingBox.setGravity(Gravity.CENTER);
-        loadingBox.setPadding(dpi(22), dpi(16), dpi(22), dpi(16));
-        loadingBox.setBackground(Ui.buttonBg(this, 0xF2120E14, 0xF2120E14, 0x44FFFFFF, 10f));
-        ProgressBar spinner = new ProgressBar(this);
-        loadingBox.addView(spinner, new LinearLayout.LayoutParams(dpi(34), dpi(34)));
-        loadingText = Ui.text(this, "Actualizando…", 11.5f, RogStyle.TEXT_DIM, false);
-        loadingText.setGravity(Gravity.CENTER);
-        loadingText.setPadding(0, dpi(8), 0, 0);
+        ProgressBar spin = new ProgressBar(this);
+        loadingBox.addView(spin);
+        loadingText = Ui.text(this, "Cargando catálogo…", 12f, 0xFFCCD6E0, false);
         loadingBox.addView(loadingText);
         loadingBox.setVisibility(View.GONE);
         content.addView(loadingBox, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER));
 
-        countView = Ui.text(this, "", 10.5f, RogStyle.TEXT_DIM, false);
-        countView.setPadding(dpi(4), dpi(2), dpi(4), 0);
-        column.addView(countView, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        summaryView = Ui.text(this, "", 10f, 0xFF667788, false);
+        summaryView.setPadding(dpi(16), dpi(4), dpi(16), dpi(8));
+        column.addView(content, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        column.addView(summaryView);
 
+        // chips legacy hidden container
+        chipsRow = new LinearLayout(this);
+        chipsRow.setVisibility(View.GONE);
+        column.addView(chipsRow);
+
+        root.addView(column, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.MATCH_PARENT, 1f));
         setContentView(root);
+    }
+
+    private View sideItem(final String label, final String id, boolean selected) {
+        TextView t = Ui.text(this, label, 12f, selected ? 0xFFFFFFFF : 0xFF8A93A3, true);
+        t.setPadding(dpi(12), dpi(12), dpi(12), dpi(12));
+        if (selected) {
+            t.setBackground(roundedStroke(0x2210A0C0, 0xFF00D4FF, 10f));
+        }
+        t.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onSidebar(id);
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dpi(6);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private void onSidebar(String id) {
+        sidebarSection = id == null ? "movies" : id;
+        if ("settings".equals(sidebarSection)) {
+            showToolsPanel();
+            return;
+        }
+        if ("fav".equals(sidebarSection) || "hist".equals(sidebarSection)) {
+            Toast.makeText(this, "Pronto disponible", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if ("home".equals(sidebarSection) || "movies".equals(sidebarSection)) {
+            selectedKind = "";
+        } else if ("series".equals(sidebarSection)) {
+            selectedKind = MovieItem.KIND_SERIES;
+        }
+        if ("movies".equals(sidebarSection)) {
+            selectedKind = MovieItem.KIND_MOVIE;
+        }
+        if ("home".equals(sidebarSection)) {
+            selectedKind = "";
+        }
+        selectedGenre = "";
+        rebuildSidebar();
+        applyFilter();
+    }
+
+    private void rebuildSidebar() {
+        if (sidebar == null) return;
+        sidebar.removeAllViews();
+        sidebar.addView(sideItem("Inicio", "home", "home".equals(sidebarSection)));
+        sidebar.addView(sideItem("Películas", "movies", "movies".equals(sidebarSection)));
+        sidebar.addView(sideItem("Series", "series", "series".equals(sidebarSection)));
+        sidebar.addView(sideItem("Favoritos", "fav", "fav".equals(sidebarSection)));
+        sidebar.addView(sideItem("Historial", "hist", "hist".equals(sidebarSection)));
+        sidebar.addView(sideItem("Ajustes", "settings", false));
+    }
+
+    private GradientDrawable rounded(int color, float radiusDp) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(Ui.dpi(this, radiusDp));
+        return g;
+    }
+
+    private GradientDrawable roundedStroke(int fill, int stroke, float radiusDp) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(fill);
+        g.setStroke(Math.max(1, dpi(1)), stroke);
+        g.setCornerRadius(Ui.dpi(this, radiusDp));
+        return g;
     }
 
     private View buildHeader() {
@@ -928,7 +1150,6 @@ public final class MoviesActivity extends Activity {
     }
 
     private void applyFilter() {
-        if (adapter == null) return;
         shownItems.clear();
         for (int i = 0; i < allItems.size(); i++) {
             MovieItem item = allItems.get(i);
@@ -948,17 +1169,161 @@ public final class MoviesActivity extends Activity {
             if (searchText.length() > 0 && item.searchKey().indexOf(searchText) < 0) continue;
             shownItems.add(item);
         }
-        adapter.notifyDataSetChanged();
+        if (adapter != null) adapter.notifyDataSetChanged();
+        rebuildCatalogRows();
         updateStatus();
     }
 
+    private void rebuildCatalogRows() {
+        if (rowsContainer == null) return;
+        rowsContainer.removeAllViews();
+        featured = shownItems.isEmpty() ? null : shownItems.get(0);
+        updateHero();
+        if (shownItems.isEmpty()) return;
+
+        // Destacadas: primeros títulos
+        int destCount = Math.min(18, shownItems.size());
+        ArrayList<MovieItem> dest = new ArrayList<MovieItem>();
+        for (int i = 0; i < destCount; i++) dest.add(shownItems.get(i));
+        rowsContainer.addView(buildRow("Destacadas", dest));
+
+        // Filas por género
+        java.util.LinkedHashMap<String, ArrayList<MovieItem>> byGenre =
+                new java.util.LinkedHashMap<String, ArrayList<MovieItem>>();
+        for (int i = 0; i < shownItems.size(); i++) {
+            MovieItem item = shownItems.get(i);
+            if (item.genres == null || item.genres.isEmpty()) {
+                ArrayList<MovieItem> other = byGenre.get("Otros");
+                if (other == null) {
+                    other = new ArrayList<MovieItem>();
+                    byGenre.put("Otros", other);
+                }
+                other.add(item);
+                continue;
+            }
+            for (int g = 0; g < item.genres.size(); g++) {
+                String genre = item.genres.get(g);
+                if (genre == null || genre.trim().length() == 0) continue;
+                ArrayList<MovieItem> list = byGenre.get(genre);
+                if (list == null) {
+                    list = new ArrayList<MovieItem>();
+                    byGenre.put(genre, list);
+                }
+                if (!list.contains(item)) list.add(item);
+            }
+        }
+        int rows = 0;
+        for (java.util.Map.Entry<String, ArrayList<MovieItem>> e : byGenre.entrySet()) {
+            if (rows >= 12) break;
+            ArrayList<MovieItem> list = e.getValue();
+            if (list == null || list.size() < 2) continue;
+            if (list.size() > 24) {
+                ArrayList<MovieItem> cut = new ArrayList<MovieItem>();
+                for (int i = 0; i < 24; i++) cut.add(list.get(i));
+                list = cut;
+            }
+            rowsContainer.addView(buildRow(e.getKey(), list));
+            rows++;
+        }
+        // Si no hubo géneros, una sola fila con todo
+        if (rows == 0 && shownItems.size() > destCount) {
+            ArrayList<MovieItem> rest = new ArrayList<MovieItem>();
+            for (int i = destCount; i < Math.min(shownItems.size(), destCount + 30); i++) {
+                rest.add(shownItems.get(i));
+            }
+            if (!rest.isEmpty()) rowsContainer.addView(buildRow("Más títulos", rest));
+        }
+    }
+
+    private void updateHero() {
+        if (heroTitle == null) return;
+        if (featured == null) {
+            heroTitle.setText("Catálogo Leny");
+            heroPlot.setText("Añade listas M3U / Xtream en Ajustes para llenar el catálogo.");
+            heroBadge.setText("PELÍCULAS");
+            if (heroPoster != null) heroPoster.setImageDrawable(null);
+            return;
+        }
+        heroTitle.setText(featured.title);
+        String plot = featured.synopsis;
+        if (plot == null || plot.length() == 0) plot = featured.metaLine();
+        if (plot == null || plot.length() == 0) {
+            plot = featured.isSeries() ? "Serie" : "Película";
+            if (featured.year != null && featured.year.length() > 0) plot += " · " + featured.year;
+        }
+        heroPlot.setText(plot);
+        heroBadge.setText(featured.isSeries() ? "SERIE" : "PELÍCULA");
+        if (heroPoster != null) {
+            PosterLoader.load(this, featured.poster, heroPoster, featured.title);
+        }
+    }
+
+    private View buildRow(String title, final ArrayList<MovieItem> items) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams blockLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        blockLp.topMargin = dpi(14);
+        block.setLayoutParams(blockLp);
+
+        TextView head = Ui.text(this, title, 14f, 0xFFE8EEF8, true);
+        head.setPadding(dpi(4), 0, dpi(4), dpi(8));
+        block.addView(head);
+
+        HorizontalScrollView hsv = new HorizontalScrollView(this);
+        hsv.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        for (int i = 0; i < items.size(); i++) {
+            final MovieItem item = items.get(i);
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(dpi(4), 0, dpi(4), 0);
+            FrameLayout posterBox = new FrameLayout(this);
+            ImageView poster = new ImageView(this);
+            poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            poster.setBackgroundColor(0xFF1A2030);
+            posterBox.addView(poster, new FrameLayout.LayoutParams(dpi(110), dpi(160)));
+            TextView badge = Ui.text(this, item.isSeries() ? "SERIE" : "PELÍ", 8f, 0xFFFFFFFF, true);
+            badge.setBackgroundColor(item.isSeries() ? 0xD9A855F7 : 0xD91F5AA6);
+            badge.setPadding(dpi(4), dpi(2), dpi(4), dpi(2));
+            FrameLayout.LayoutParams badgeLp = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.START | Gravity.TOP);
+            badgeLp.leftMargin = dpi(4);
+            badgeLp.topMargin = dpi(4);
+            posterBox.addView(badge, badgeLp);
+            card.addView(posterBox);
+            TextView name = Ui.text(this, item.title, 10f, 0xFFE8EEF8, true);
+            name.setMaxLines(2);
+            name.setEllipsize(TextUtils.TruncateAt.END);
+            name.setPadding(0, dpi(4), 0, 0);
+            card.addView(name, new LinearLayout.LayoutParams(dpi(110),
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+            PosterLoader.load(this, item.poster, poster, item.title);
+            card.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showDetail(item);
+                }
+            });
+            row.addView(card);
+        }
+        hsv.addView(row);
+        block.addView(hsv);
+        return block;
+    }
+
+
     private void updateStatus() {
-        if (grid == null) return;
         if (loadingBox != null) loadingBox.setVisibility(loading ? View.VISIBLE : View.GONE);
         if (loadingText != null && loading) loadingText.setText("Actualizando las listas…");
 
         boolean empty = shownItems.isEmpty();
-        grid.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (catalogScroll != null) {
+            catalogScroll.setVisibility(empty && !loading ? View.GONE : View.VISIBLE);
+        }
+        if (grid != null) grid.setVisibility(View.GONE);
         if (emptyBox != null) {
             emptyBox.setVisibility(empty && !loading ? View.VISIBLE : View.GONE);
         }
