@@ -2,6 +2,7 @@ package com.pocketbuilder.app_wslenytvplayer1792356127271.movies;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
@@ -21,6 +22,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.pocketbuilder.app_wslenytvplayer1792356127271.Immersion;
 import com.pocketbuilder.app_wslenytvplayer1792356127271.LocalProxy;
@@ -406,6 +408,13 @@ public final class MoviesPlayerActivity extends Activity implements SurfaceHolde
             }
         });
         row.addView(playButton);
+
+        row.addView(button("AUDIO", 0xFF2B2B40, TEXT, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showAudioPicker();
+            }
+        }), gap(8));
 
         row.addView(button("-10 s", 0xFF2B2B40, TEXT, new View.OnClickListener() {
             @Override

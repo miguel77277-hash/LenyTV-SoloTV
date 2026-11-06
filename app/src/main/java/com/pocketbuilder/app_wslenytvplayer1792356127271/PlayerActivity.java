@@ -1567,6 +1567,14 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             // Flechas del panel de canales: que las gestione el ListView con foco
             return super.dispatchKeyEvent(event);
         }
+        // Atrás fuera de paneles: salir al menú de canales (DOWN y UP por TV boxes)
+        if ((key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_ESCAPE)
+                && (action == KeyEvent.ACTION_DOWN || action == KeyEvent.ACTION_UP)) {
+            if (action == KeyEvent.ACTION_UP || action == KeyEvent.ACTION_DOWN) {
+                finish();
+                return true;
+            }
+        }
         if (locked) {
             if (action == KeyEvent.ACTION_UP
                     && (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_ESCAPE)) {
@@ -1602,10 +1610,7 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             switch (key) {
                 case KeyEvent.KEYCODE_BACK:
                 case KeyEvent.KEYCODE_ESCAPE:
-                    if (controlsVisible) {
-                        setControlsVisible(false);
-                        return true;
-                    }
+                    // Sin panel abierto: salir al menú de canales (como la flecha <)
                     finish();
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
@@ -1671,8 +1676,6 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
             case KeyEvent.KEYCODE_CHANNEL_UP:
             case KeyEvent.KEYCODE_CHANNEL_DOWN:
-            case KeyEvent.KEYCODE_BACK:
-            case KeyEvent.KEYCODE_ESCAPE:
                 return true;
             default:
                 return false;

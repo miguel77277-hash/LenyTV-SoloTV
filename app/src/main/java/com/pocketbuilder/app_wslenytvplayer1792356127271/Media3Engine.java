@@ -696,7 +696,60 @@ public final class Media3Engine {
      * Elige una pista de audio reproducible. Prioriza AAC; evita silencio cuando
      * el selector deja AC-3/E-AC-3 no soportado por el aparato.
      */
-    private void ensurePlayableAudioTrack() {
+    
+    /** Etiquetas de pistas de audio disponibles (para el selector de películas). */
+    public java.util.ArrayList<String> listAudioTrackLabels() {
+        java.util.ArrayList<String> out = new java.util.ArrayList<String>();
+        if (player == null || trackSelector == null) return out;
+        try {
+            Tracks tracks = player.getCurrentTracks();
+            java.util.List<Tracks.Group> groups = tracks.getGroups();
+            for (int gi = 0; gi < groups.size(); gi++) {
+                Tracks.Group group = groups.get(gi);
+                if (group.getType() != C.TRACK_TYPE_AUDIO) continue;
+                for (int ti = 0; ti < group.length; ti++) {
+                    Format fmt = group.getTrackFormat(ti);
+                    String label = fmt.label;
+                    if (label == null || label.length() == 0) label = fmt.language;
+                    if (label == null || label.length() == 0) label = "Audio " + (out.size() + 1);
+                    String mime = fmt.sampleMimeType == null ? "" : fmt.sampleMimeType;
+                    if (mime.length() > 0) label = label + " (" + mime.replace("audio/", "") + ")";
+                    out.add(label);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    /** Selecciona la pista de audio n-ésima (orden de listAudioTrackLabels). */
+    public void selectAudioTrack(int index) {
+        if (player == null || trackSelector == null || index < 0) return;
+        try {
+            Tracks tracks = player.getCurrentTracks();
+            java.util.List<Tracks.Group> groups = tracks.getGroups();
+            int n = 0;
+            for (int gi = 0; gi < groups.size(); gi++) {
+                Tracks.Group group = groups.get(gi);
+                if (group.getType() != C.TRACK_TYPE_AUDIO) continue;
+                for (int ti = 0; ti < group.length; ti++) {
+                    if (n == index) {
+                        trackSelector.setParameters(
+                                trackSelector.buildUponParameters()
+                                        .setOverrideForType(new TrackSelectionOverride(
+                                                group.getMediaTrackGroup(), ti))
+                                        .build());
+                        status("Audio · " + (ti + 1));
+                        return;
+                    }
+                    n++;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+private void ensurePlayableAudioTrack() {
         ExoPlayer p = player;
         DefaultTrackSelector ts = trackSelector;
         if (p == null || ts == null || released) return;

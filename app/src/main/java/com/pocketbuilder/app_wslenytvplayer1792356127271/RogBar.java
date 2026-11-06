@@ -115,6 +115,16 @@ final class RogBar {
                         host.onRefresh();
                     }
                 }), wrap());
+        TextView moviesBtn = Ui.text(ctx, "PELÍCULAS", 11f, 0xFF00D4FF, true);
+        moviesBtn.setPadding(Ui.dpi(ctx, 10), Ui.dpi(ctx, 8), Ui.dpi(ctx, 10), Ui.dpi(ctx, 8));
+        moviesBtn.setBackground(Ui.buttonBg(ctx, 0x3310A0C0, 0xFF00D4FF, 0x6600E5FF, 8f));
+        moviesBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                host.onMovies();
+            }
+        });
+        bar.addView(moviesBtn, wrap());
         bar.addView(iconButton(ctx, Icons.gear(ctx, RogStyle.GREEN),
                 "Ajustes", new View.OnClickListener() {
                     @Override

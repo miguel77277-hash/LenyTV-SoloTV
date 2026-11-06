@@ -244,6 +244,14 @@ public final class MainActivity extends android.app.Activity {
             public void onPower() {
                 finish();
             }
+
+            public void onMovies() {
+                try {
+                    startActivity(new Intent(MainActivity.this, MoviesActivity.class));
+                } catch (Throwable error) {
+                    toast("No se pudo abrir Películas");
+                }
+            }
         }));
         // La barra anterior sigue construida (sus relojes y avisos funcionan) pero
         // no se ve: la barra visible es la de la referencia.
