@@ -144,6 +144,8 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
     private LinearLayout drawerSectionRow;
     /** Apartado elegido en el panel ("" = todos los canales de la lista). */
     private String drawerSection = "";
+    /** Posición resaltada en el panel de canales (mando TV). */
+    private int drawerSelectedPos = 0;
     /** Canales visibles en el panel según el apartado elegido. */
     private final ArrayList<Integer> drawerPositions = new ArrayList<Integer>();
 
@@ -3115,11 +3117,16 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     // ------------------------------------------------------------------ panel de canales
 
-    /** Selección + scroll + foco en la fila (con un solo reintento corto). */
+    /**
+     * Mueve el seleccionador del panel al canal indicado.
+     * El resaltado sigue al índice (no depende solo del foco de Android).
+     */
     private void focusDrawerRow(final int position) {
         if (drawerList == null || position < 0) return;
         if (position >= drawerPositions.size()) return;
+        drawerSelectedPos = position;
         try {
+            if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
             drawerList.setSelection(position);
             drawerList.smoothScrollToPosition(position);
             drawerList.post(new Runnable() {
@@ -3257,6 +3264,9 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             }
         }
         if (drawerCount != null) drawerCount.setText(drawerPositions.size() + " entradas");
+        if (drawerSelectedPos >= drawerPositions.size()) {
+            drawerSelectedPos = Math.max(0, drawerPositions.size() - 1);
+        }
         if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
     }
 
@@ -3343,11 +3353,20 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             name.setText(visibleName);
             category.setText(Names.forSection(category.getPaint(), channel.category));
             final boolean isCurrent = channelIndex == index;
+            final boolean isSelected = position == drawerSelectedPos;
             final int channelIndexFinal = channelIndex;
-            name.setTextColor(isCurrent ? 0xFFFFFFFF : Ui.TEXT);
-            // Filas del panel también translúcidas, para que el vídeo se vea detrás.
-            row.setBackground(Ui.roundedStroke(PlayerActivity.this,
-                    isCurrent ? 0x99E13A2B : 0x5A14141C, isCurrent ? Ui.RED : 0x55242433, 1f, 8f));
+            name.setTextColor((isSelected || isCurrent) ? 0xFFFFFFFF : Ui.TEXT);
+            // Resaltado del mando = drawerSelectedPos; el canal en emisión sigue en rojo suave
+            if (isSelected) {
+                row.setBackground(Ui.roundedStroke(PlayerActivity.this,
+                        0xCC00A8E8, 0xFF00F0FF, 2.5f, 8f));
+            } else if (isCurrent) {
+                row.setBackground(Ui.roundedStroke(PlayerActivity.this,
+                        0x99E13A2B, Ui.RED, 1f, 8f));
+            } else {
+                row.setBackground(Ui.roundedStroke(PlayerActivity.this,
+                        0x5A14141C, 0x55242433, 1f, 8f));
+            }
             LogoLoader.load(PlayerActivity.this, channel.logo, logo, visibleName);
             row.setFocusable(true);
             row.setClickable(true);
@@ -3357,23 +3376,9 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             row.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
-                    if (hasFocus) {
-                        v.setBackground(Ui.roundedStroke(PlayerActivity.this,
-                                0xCC00A8E8, 0xFF00F0FF, 2.5f, 8f));
-                        name.setTextColor(0xFFFFFFFF);
-                        // Al bajar con el mando, la lista debe desplazarse
-                        if (drawerList != null) {
-                            try {
-                                drawerList.setSelection(listPosFocus);
-                                drawerList.smoothScrollToPosition(listPosFocus);
-                            } catch (Throwable ignored) {
-                            }
-                        }
-                    } else {
-                        v.setBackground(Ui.roundedStroke(PlayerActivity.this,
-                                isCurrent ? 0x99E13A2B : 0x5A14141C,
-                                isCurrent ? Ui.RED : 0x55242433, 1f, 8f));
-                        name.setTextColor(isCurrent ? 0xFFFFFFFF : Ui.TEXT);
+                    if (hasFocus && listPosFocus != drawerSelectedPos) {
+                        drawerSelectedPos = listPosFocus;
+                        if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
                     }
                 }
             });
