@@ -519,9 +519,10 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         buffering.setVisibility(View.GONE);
         FrameLayout.LayoutParams bufferParams = new FrameLayout.LayoutParams(
                 Ui.dpi(this, 54), Ui.dpi(this, 54));
+        // Centrado real en el medio de la pantalla
         bufferParams.gravity = Gravity.CENTER;
-        // El círculo de carga queda por encima de la banda de controles.
-        bufferParams.bottomMargin = Ui.dpi(this, 92);
+        bufferParams.bottomMargin = 0;
+        bufferParams.topMargin = 0;
         root.addView(buffering, bufferParams);
 
         root.addView(buildMessagePanel());
@@ -1432,21 +1433,35 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
                     return false;
                 }
                 int pos = drawerList.getSelectedItemPosition();
-                if (pos < 0) pos = drawerList.getFirstVisiblePosition();
+                if (pos < 0) {
+                    View focused = drawerList.findFocus();
+                    if (focused != null) {
+                        for (int i = 0; i < drawerList.getChildCount(); i++) {
+                            if (drawerList.getChildAt(i) == focused
+                                    || (drawerList.getChildAt(i) instanceof ViewGroup
+                                    && ((ViewGroup) drawerList.getChildAt(i)).indexOfChild(focused) >= 0)) {
+                                pos = drawerList.getFirstVisiblePosition() + i;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (pos < 0) pos = 0;
                 int count = drawerAdapter == null ? 0 : drawerAdapter.getCount();
                 if (count <= 0) return false;
                 if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && pos < count - 1) {
-                    int next = pos + 1;
-                    drawerList.setSelection(next);
-                    drawerList.smoothScrollToPosition(next);
-                    focusDrawerRow(next);
+                    focusDrawerRow(pos + 1);
                     return true;
                 }
                 if (keyCode == KeyEvent.KEYCODE_DPAD_UP && pos > 0) {
-                    int prev = pos - 1;
-                    drawerList.setSelection(prev);
-                    drawerList.smoothScrollToPosition(prev);
-                    focusDrawerRow(prev);
+                    focusDrawerRow(pos - 1);
+                    return true;
+                }
+                // Desde el primer canal, arriba vuelve a apartados
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP && pos <= 0
+                        && drawerSectionRow != null && drawerSectionRow.getChildCount() > 0) {
+                    View chip = drawerSectionRow.getChildAt(0);
+                    if (chip != null) chip.requestFocus();
                     return true;
                 }
                 return false;
@@ -3100,13 +3115,30 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
 
     // ------------------------------------------------------------------ panel de canales
 
-    /** Solo selección + scroll; sin reintentos en bucle (evita cierre de la app). */
+    /** Selección + scroll + foco en la fila (con un solo reintento corto). */
     private void focusDrawerRow(final int position) {
         if (drawerList == null || position < 0) return;
+        if (position >= drawerPositions.size()) return;
         try {
-            if (position >= drawerPositions.size()) return;
             drawerList.setSelection(position);
             drawerList.smoothScrollToPosition(position);
+            drawerList.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        int first = drawerList.getFirstVisiblePosition();
+                        int idx = position - first;
+                        if (idx >= 0 && idx < drawerList.getChildCount()) {
+                            View child = drawerList.getChildAt(idx);
+                            if (child != null) {
+                                child.setFocusable(true);
+                                child.requestFocus();
+                            }
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
         } catch (Throwable ignored) {
         }
     }

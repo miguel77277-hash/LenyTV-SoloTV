@@ -686,6 +686,30 @@ public final class MainActivity extends android.app.Activity {
             public void onOpen(Channel channel) {
                 if (channel != null) openPlayer(channel);
             }
+            @Override
+            public void onNavigateToCategories() {
+                if (categoryList == null) return;
+                try {
+                    categoryList.requestFocus();
+                    int sel = 0;
+                    for (int i = 0; i < categoryNames.size(); i++) {
+                        if (categoryNames.get(i).equals(selectedCategory)) {
+                            sel = i;
+                            break;
+                        }
+                    }
+                    categoryList.setSelection(sel);
+                    if (categoryList.getChildCount() > 0) {
+                        int first = categoryList.getFirstVisiblePosition();
+                        int idx = sel - first;
+                        if (idx >= 0 && idx < categoryList.getChildCount()) {
+                            View row = categoryList.getChildAt(idx);
+                            if (row != null) row.requestFocus();
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
         });
         grid = new GridView(this);
         grid.setAdapter(channelAdapter);

@@ -27,6 +27,8 @@ final class RogChannelAdapter extends BaseAdapter {
 
     interface OnChannelAction {
         void onOpen(Channel channel);
+        /** Mando: desde la primera columna, flecha izquierda vuelve a categorías. */
+        void onNavigateToCategories();
     }
 
     private final Context ctx;
@@ -165,8 +167,14 @@ final class RogChannelAdapter extends BaseAdapter {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) nextPos = pos + cols;
                 else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) nextPos = pos - cols;
                 else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) nextPos = pos + 1;
-                else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) nextPos = pos - 1;
-                else return false;
+                else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    // Primera columna → menú de apartados/categorías
+                    if (pos % cols == 0) {
+                        if (action != null) action.onNavigateToCategories();
+                        return true;
+                    }
+                    nextPos = pos - 1;
+                } else return false;
                 if (nextPos < 0 || nextPos >= count) return true;
                 final int next = nextPos;
                 g.setSelection(next);
