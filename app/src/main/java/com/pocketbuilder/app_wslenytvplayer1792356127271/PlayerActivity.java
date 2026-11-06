@@ -1544,6 +1544,27 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         int key = event.getKeyCode();
 
         if (isPanelOpen()) {
+            // Atrás / Escape: cerrar panel, NO salir del reproductor
+            if (action == KeyEvent.ACTION_UP
+                    && (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_ESCAPE)) {
+                if (drawerHolder != null && drawerHolder.getVisibility() == View.VISIBLE) {
+                    closeDrawer();
+                    return true;
+                }
+                if (settingsHolder != null && settingsHolder.getVisibility() == View.VISIBLE) {
+                    closeSettings();
+                    return true;
+                }
+                if (messageHolder != null && messageHolder.getVisibility() == View.VISIBLE) {
+                    hideMessage();
+                    return true;
+                }
+                if (choiceHolder != null && choiceHolder.getVisibility() == View.VISIBLE) {
+                    closeChoice();
+                    return true;
+                }
+            }
+            // Flechas del panel de canales: que las gestione el ListView con foco
             return super.dispatchKeyEvent(event);
         }
         if (locked) {
@@ -3141,8 +3162,32 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         if (drawerHolder == null) return;
         rebuildDrawerSections();
         drawerHolder.setVisibility(View.VISIBLE);
-        setControlsVisible(true);
+        // Ocultar barra play/siguiente: el mando entra directo al panel
+        setControlsVisible(false);
         ui.removeCallbacks(hideControls);
+        // Foco directo a la lista de canales del panel
+        if (drawerList != null) {
+            drawerList.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        int sel = 0;
+                        for (int i = 0; i < drawerPositions.size(); i++) {
+                            if (drawerPositions.get(i).intValue() == index) {
+                                sel = i;
+                                break;
+                            }
+                        }
+                        drawerSelectedPos = sel;
+                        if (drawerAdapter != null) drawerAdapter.notifyDataSetChanged();
+                        drawerList.setSelection(sel);
+                        drawerList.smoothScrollToPosition(sel);
+                        drawerList.requestFocus();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+        }
     }
 
     /**
