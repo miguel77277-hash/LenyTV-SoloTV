@@ -1405,8 +1405,12 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         android.widget.HorizontalScrollView sectionScroller =
                 new android.widget.HorizontalScrollView(this);
         sectionScroller.setHorizontalScrollBarEnabled(false);
+        sectionScroller.setFocusable(false);
+        sectionScroller.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         drawerSectionRow = new LinearLayout(this);
         drawerSectionRow.setOrientation(LinearLayout.HORIZONTAL);
+        drawerSectionRow.setFocusable(false);
+        drawerSectionRow.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         sectionScroller.addView(drawerSectionRow);
         panel.addView(sectionScroller, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -3151,11 +3155,56 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
             chip.setContentDescription("Apartado " + name);
             chip.setClickable(true);
             chip.setFocusable(true);
+            chip.setFocusableInTouchMode(false);
+            final boolean chipChosen = chosen;
+            chip.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) {
+                        v.setBackground(Ui.buttonBg(PlayerActivity.this,
+                                0xCC00A8E8, 0xFF00F0FF, 0xFF00F0FF, 14f));
+                        ((TextView) v).setTextColor(0xFFFFFFFF);
+                    } else {
+                        v.setBackground(Ui.buttonBg(PlayerActivity.this,
+                                chipChosen ? 0xB3E13A2B : 0x50161620,
+                                chipChosen ? Ui.RED : 0x33FFFFFF,
+                                chipChosen ? Ui.RED : 0x33FFFFFF, 14f));
+                        ((TextView) v).setTextColor(chipChosen ? 0xFFFFFFFF : Ui.TEXT_DIM);
+                    }
+                }
+            });
+            // Abajo del mando: salir de apartados y entrar en la lista de canales
+            chip.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int keyCode, KeyEvent event) {
+                    if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+                    if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                        if (drawerList != null) {
+                            drawerList.requestFocus();
+                            int sel = drawerList.getSelectedItemPosition();
+                            if (sel < 0) sel = 0;
+                            focusDrawerRow(sel);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
             chip.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     drawerSection = name;
                     rebuildDrawerSections();
+                    // Tras elegir apartado, foco a la lista (mando)
+                    if (drawerList != null) {
+                        drawerList.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                drawerList.requestFocus();
+                                focusDrawerRow(0);
+                            }
+                        });
+                    }
                 }
             });
             LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(

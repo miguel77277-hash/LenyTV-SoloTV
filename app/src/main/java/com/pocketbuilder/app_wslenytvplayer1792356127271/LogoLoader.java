@@ -51,7 +51,7 @@ final class LogoLoader {
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final ExecutorService POOL = Executors.newFixedThreadPool(3);
     /** Descargas de logo en marcha a la vez como máximo. */
-    private static final int MAX_PENDING = 24;
+    private static final int MAX_PENDING = 48;
     private static final java.util.concurrent.atomic.AtomicInteger PENDING =
             new java.util.concurrent.atomic.AtomicInteger(0);
 
@@ -88,7 +88,20 @@ final class LogoLoader {
         // cientos de descargas a la vez: en un teléfono con poca memoria eso
         // saturaba el aparato mientras se dibujan las tarjetas. Si ya hay muchas
         // en marcha se deja el icono con la inicial y no se pide ninguna más.
-        if (PENDING.get() >= MAX_PENDING) return;
+        if (PENDING.get() >= MAX_PENDING) {
+            // Antes se dejaba la letra para siempre en filas al hacer scroll.
+            // Se reintenta cuando baje la cola de descargas.
+            MAIN.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (view.getTag() != null && logoUrl.equals(view.getTag())
+                            && CACHE.get(logoUrl) == null) {
+                        load(context, logoUrl, view, channelName);
+                    }
+                }
+            }, 400);
+            return;
+        }
         PENDING.incrementAndGet();
         final Context app = context.getApplicationContext() == null
                 ? context : context.getApplicationContext();
