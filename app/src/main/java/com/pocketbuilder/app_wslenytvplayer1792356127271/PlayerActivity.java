@@ -1754,6 +1754,30 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         ui.postDelayed(hideControls, seconds * 1000L);
     }
 
+    private void showMoviesAudioPicker() {
+        if (!moviesAudio || media3 == null) return;
+        try {
+            java.util.ArrayList<String> labels = media3.listAudioTrackLabels();
+            if (labels == null || labels.isEmpty()) {
+                android.widget.Toast.makeText(this, "No hay pistas de audio",
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            final String[] items = labels.toArray(new String[0]);
+            android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(this);
+            b.setTitle("Elegir audio");
+            b.setItems(items, new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    if (media3 != null) media3.selectAudioTrack(which);
+                }
+            });
+            b.setNegativeButton("Cerrar", null);
+            b.show();
+        } catch (Throwable ignored) {
+        }
+    }
+
     private boolean isPanelOpen() {
         boolean drawer = drawerHolder != null && drawerHolder.getVisibility() == View.VISIBLE;
         boolean message = messageHolder != null && messageHolder.getVisibility() == View.VISIBLE;
