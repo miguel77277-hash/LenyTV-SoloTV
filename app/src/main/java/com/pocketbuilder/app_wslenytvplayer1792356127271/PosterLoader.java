@@ -69,6 +69,11 @@ final class PosterLoader {
                 @Override
                 public void run() {
                     Bitmap bitmap = decode(app, key);
+                    if (bitmap == null) {
+                        // Reintento: muchos carteles HTTP fallan a la primera
+                        try { Thread.sleep(350); } catch (InterruptedException ignored) {}
+                        bitmap = decode(app, key);
+                    }
                     if (bitmap == null) return;
                     final Bitmap ready = bitmap;
                     MAIN.post(new Runnable() {

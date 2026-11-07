@@ -44,6 +44,8 @@ public final class EventsActivity extends Activity {
     private LinearLayout rowsBox;
     private LinearLayout loadingBox;
     private TextView statusView;
+    private LinearLayout serverChips;
+    private String selectedServer = "";
     private boolean loading = false;
 
     /** Canal de evento: nombre, url, logo, servidor origen. */
@@ -137,6 +139,15 @@ public final class EventsActivity extends Activity {
         top.addView(gear, gearLp);
         root.addView(top);
 
+        HorizontalScrollView chipScroll = new HorizontalScrollView(this);
+        chipScroll.setHorizontalScrollBarEnabled(false);
+        chipScroll.setPadding(dpi(12), dpi(4), dpi(12), dpi(4));
+        serverChips = new LinearLayout(this);
+        serverChips.setOrientation(LinearLayout.HORIZONTAL);
+        chipScroll.addView(serverChips);
+        root.addView(chipScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
         statusView = Ui.text(this, "", 11f, 0xFF8899AA, false);
         statusView.setPadding(dpi(16), dpi(4), dpi(16), dpi(6));
         root.addView(statusView);
@@ -227,50 +238,83 @@ public final class EventsActivity extends Activity {
     private void rebuildRows() {
         if (rowsBox == null) return;
         rowsBox.removeAllViews();
+        rebuildServerChips();
         if (all.isEmpty()) {
             rowsBox.addView(Ui.text(this,
                     "Sin eventos. Revisa los enlaces en Ajustes ⚙.",
                     13f, 0xFF99AABC, false));
             return;
         }
-        // Dividir por lista/servidor (las 3 listas no se mezclan)
-        LinkedHashMap<String, ArrayList<EventItem>> byServer =
-                new LinkedHashMap<String, ArrayList<EventItem>>();
+        ArrayList<EventItem> filtered = new ArrayList<EventItem>();
         for (int i = 0; i < all.size(); i++) {
             EventItem e = all.get(i);
-            String key = e.server == null || e.server.length() == 0 ? "Otros" : e.server;
-            ArrayList<EventItem> list = byServer.get(key);
-            if (list == null) {
-                list = new ArrayList<EventItem>();
-                byServer.put(key, list);
-            }
-            list.add(e);
+            if (selectedServer.length() > 0 && !selectedServer.equals(e.server)) continue;
+            filtered.add(e);
         }
-        for (Map.Entry<String, ArrayList<EventItem>> entry : byServer.entrySet()) {
-            TextView head = Ui.text(this, "●  " + entry.getKey(), 15f, CYAN, true);
-            head.setPadding(dpi(6), dpi(16), dpi(6), dpi(10));
-            rowsBox.addView(head);
+        if (filtered.isEmpty()) {
+            rowsBox.addView(Ui.text(this, "No hay eventos en este servidor.", 13f, 0xFF99AABC, false));
+            return;
+        }
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout line = null;
+        for (int i = 0; i < filtered.size(); i++) {
+            if (i % 3 == 0) {
+                line = new LinearLayout(this);
+                line.setOrientation(LinearLayout.HORIZONTAL);
+                LinearLayout.LayoutParams lineLp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                lineLp.bottomMargin = dpi(10);
+                line.setLayoutParams(lineLp);
+                grid.addView(line);
+            }
+            line.addView(eventCard(filtered.get(i)));
+        }
+        rowsBox.addView(grid);
+        if (statusView != null && !loading) {
+            statusView.setText(filtered.size() + " eventos"
+                    + (selectedServer.length() > 0 ? " · " + selectedServer : ""));
+        }
+    }
 
-            // Rejilla de tarjetas 3 columnas
-            LinearLayout grid = new LinearLayout(this);
-            grid.setOrientation(LinearLayout.VERTICAL);
-            ArrayList<EventItem> list = entry.getValue();
-            LinearLayout line = null;
-            for (int i = 0; i < list.size(); i++) {
-                if (i % 3 == 0) {
-                    line = new LinearLayout(this);
-                    line.setOrientation(LinearLayout.HORIZONTAL);
-                    LinearLayout.LayoutParams lineLp = new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT);
-                    lineLp.bottomMargin = dpi(10);
-                    line.setLayoutParams(lineLp);
-                    grid.addView(line);
-                }
-                line.addView(eventCard(list.get(i)));
-            }
-            rowsBox.addView(grid);
+    private void rebuildServerChips() {
+        if (serverChips == null) return;
+        serverChips.removeAllViews();
+        LinkedHashMap<String, Integer> servers = new LinkedHashMap<String, Integer>();
+        for (int i = 0; i < all.size(); i++) {
+            String s = all.get(i).server;
+            if (s == null || s.length() == 0) s = "Otros";
+            Integer c = servers.get(s);
+            servers.put(s, c == null ? 1 : c.intValue() + 1);
         }
+        // Chip "Todos"
+        serverChips.addView(serverChip("Todos", "", selectedServer.length() == 0));
+        for (Map.Entry<String, Integer> e : servers.entrySet()) {
+            // Etiqueta corta
+            String label = e.getKey();
+            if (label.length() > 28) label = label.substring(0, 26) + "…";
+            label = label + " (" + e.getValue() + ")";
+            serverChips.addView(serverChip(label, e.getKey(), e.getKey().equals(selectedServer)));
+        }
+    }
+
+    private View serverChip(final String label, final String serverKey, boolean on) {
+        TextView chip = Ui.text(this, label, 11f, on ? 0xFF001018 : 0xFFE8EEF8, true);
+        chip.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
+        chip.setBackground(rounded(on ? CYAN : 0xFF1A2230, 16f));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = dpi(8);
+        chip.setLayoutParams(lp);
+        chip.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                selectedServer = serverKey == null ? "" : serverKey;
+                rebuildRows();
+            }
+        });
+        return chip;
     }
 
     private View eventCard(final EventItem item) {

@@ -1946,47 +1946,25 @@ public final class MoviesActivity extends Activity {
         }
         final String cleanUrl = url.trim();
         final String cleanType = type == null ? "" : type.trim();
-        // Reproductor de PELÍCULAS (audio + cambio de fuente)
-        try {
-            Intent intent = new Intent(this, MoviesPlayerActivity.class);
-            intent.putExtra(MoviesPlayerActivity.EXTRA_URL, cleanUrl);
-            intent.putExtra(MoviesPlayerActivity.EXTRA_NAME, title == null ? "" : title);
-            if (cleanType.length() > 0) {
-                intent.putExtra(MoviesPlayerActivity.EXTRA_TYPE, cleanType);
-            }
-            if (item != null && item.sources != null && item.sources.size() > 0) {
-                StringBuilder urls = new StringBuilder();
-                StringBuilder labels = new StringBuilder();
-                for (int i = 0; i < item.sources.size(); i++) {
-                    MovieItem.Source s = item.sources.get(i);
-                    if (s == null || !s.usable()) continue;
-                    if (urls.length() > 0) {
-                        urls.append('\n');
-                        labels.append('\n');
-                    }
-                    urls.append(s.url);
-                    String lab = s.label;
-                    if (lab == null || lab.length() == 0) lab = "Fuente " + (i + 1);
-                    labels.append(lab);
-                }
-                if (urls.length() > 0) {
-                    intent.putExtra(MoviesPlayerActivity.EXTRA_SOURCES, urls.toString());
-                    intent.putExtra(MoviesPlayerActivity.EXTRA_SOURCE_LABELS, labels.toString());
-                }
-            }
-            MoviesPrefs.setLastUrl(this, cleanUrl);
-            startActivity(intent);
-            return;
-        } catch (Throwable t) {
-            Diag.add("Películas · no se pudo abrir el reproductor: " + Net.describe(t));
-        }
+        // Reproductor de TV + opción Audio solo en películas
         try {
             Intent intent = new Intent(this, PlayerActivity.class);
             intent.putExtra(PlayerActivity.EXTRA_MODE, PlayerActivity.MODE_SINGLE);
             intent.putExtra(PlayerActivity.EXTRA_URL, cleanUrl);
             intent.putExtra(PlayerActivity.EXTRA_NAME, title == null ? "" : title);
+            intent.putExtra(PlayerActivity.EXTRA_MOVIES_AUDIO, true);
+            if (cleanType.length() > 0) {
+                intent.putExtra(PlayerActivity.EXTRA_TYPE, cleanType);
+            }
+            String headersSpec = Headers.toSpec(MoviesPrefs.headers(this));
+            if (headersSpec.length() > 0) {
+                intent.putExtra(PlayerActivity.EXTRA_HEADERS, headersSpec);
+            }
+            MoviesPrefs.setLastUrl(this, cleanUrl);
             startActivity(intent);
+            return;
         } catch (Throwable t) {
+            Diag.add("Películas · no se pudo abrir el reproductor de TV: " + Net.describe(t));
             toast("No se pudo abrir el reproductor: " + Net.describe(t));
         }
     }

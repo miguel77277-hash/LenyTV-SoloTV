@@ -65,6 +65,8 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
     static final String EXTRA_LICENSE_TYPE = "licenseType";
     static final String EXTRA_LICENSE_KEY = "licenseKey";
     static final String EXTRA_LICENSE_STREAM_HEADERS = "licenseStreamHeaders";
+    /** Solo películas: mostrar selector de audio en controles. */
+    static final String EXTRA_MOVIES_AUDIO = "moviesAudio";
     static final String MODE_LIST = "list";
     static final String MODE_SINGLE = "single";
 
@@ -132,6 +134,8 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
     private View prevButton;
     private View nextButton;
     private View qualityButton;
+    private View audioButton;
+    private boolean moviesAudio = false;
     private View aspectButton;
     private View pipButton;
     private TextView drawerCount;
@@ -214,6 +218,7 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         String url = intent.getStringExtra(EXTRA_URL);
         String name = intent.getStringExtra(EXTRA_NAME);
         String requestedMode = intent.getStringExtra(EXTRA_MODE);
+        moviesAudio = intent.getBooleanExtra(EXTRA_MOVIES_AUDIO, false);
         manualType = intent.getStringExtra(EXTRA_TYPE) == null ? "" : intent.getStringExtra(EXTRA_TYPE);
         if (requestedMode != null && requestedMode.length() > 0) mode = requestedMode;
         categoryFilter = intent.getStringExtra(EXTRA_CATEGORY) == null ? "" : intent.getStringExtra(EXTRA_CATEGORY);
@@ -756,6 +761,15 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         chipRow.setOrientation(LinearLayout.HORIZONTAL);
         chipRow.setGravity(Gravity.END);
         chipRow.addView(qualityButton);
+        if (moviesAudio) {
+            audioButton = barPlate("Audio", "Elegir pista de audio", new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showMoviesAudioPicker();
+                }
+            });
+            chipRow.addView(audioButton);
+        }
 
         aspectButton = barPlate("Imagen", "Ajustar la imagen en pantalla", new View.OnClickListener() {
             @Override
