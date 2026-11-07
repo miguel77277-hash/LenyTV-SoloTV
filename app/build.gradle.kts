@@ -10,8 +10,8 @@ android {
         applicationId = "com.pocketbuilder.app_wslenytvplayer1792356127271"
         minSdk = 29
         targetSdk = 34
-        versionCode = 112
-        versionName = "1.112-events-default"
+        versionCode = 113
+        versionName = "1.113-ui-events"
     }
 
     buildTypes {

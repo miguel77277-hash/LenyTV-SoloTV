@@ -54,6 +54,8 @@ public final class MoviesPlayerActivity extends Activity implements SurfaceHolde
     public static final String EXTRA_URL = "movies.player.url";
     public static final String EXTRA_NAME = "movies.player.name";
     public static final String EXTRA_TYPE = "movies.player.type";
+    public static final String EXTRA_SOURCES = "movies.player.sources";
+    public static final String EXTRA_SOURCE_LABELS = "movies.player.sourceLabels";
 
     private static final int BG = 0xFF07060B;
     private static final int PANEL = 0xF0120E14;
@@ -65,6 +67,9 @@ public final class MoviesPlayerActivity extends Activity implements SurfaceHolde
     private String url = "";
     private String title = "Reproducción";
     private String typeHint = "";
+    private final java.util.ArrayList<String> sourceUrls = new java.util.ArrayList<String>();
+    private final java.util.ArrayList<String> sourceLabels = new java.util.ArrayList<String>();
+
 
     private Media3Engine media3;
     private AudioManager audio;
@@ -148,6 +153,21 @@ public final class MoviesPlayerActivity extends Activity implements SurfaceHolde
             if (name != null && name.trim().length() > 0) title = name.trim();
             String type = intent.getStringExtra(EXTRA_TYPE);
             if (type != null) typeHint = type.trim();
+            sourceUrls.clear();
+            sourceLabels.clear();
+            String src = intent.getStringExtra(EXTRA_SOURCES);
+            String labs = intent.getStringExtra(EXTRA_SOURCE_LABELS);
+            if (src != null && src.length() > 0) {
+                String[] parts = src.split("\n");
+                String[] labParts = labs == null ? new String[0] : labs.split("\n");
+                for (int i = 0; i < parts.length; i++) {
+                    if (parts[i] == null || parts[i].trim().length() == 0) continue;
+                    sourceUrls.add(parts[i].trim());
+                    String lab = i < labParts.length ? labParts[i] : ("Fuente " + (sourceUrls.size()));
+                    if (lab == null || lab.trim().length() == 0) lab = "Fuente " + sourceUrls.size();
+                    sourceLabels.add(lab.trim());
+                }
+            }
         }
         try {
             setVolumeControlStream(AudioManager.STREAM_MUSIC);
@@ -413,6 +433,12 @@ public final class MoviesPlayerActivity extends Activity implements SurfaceHolde
             @Override
             public void onClick(View v) {
                 showAudioPicker();
+            }
+        }), gap(8));
+        row.addView(button("FUENTE", 0xFF2B2B40, TEXT, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showSourcePicker();
             }
         }), gap(8));
 

@@ -239,35 +239,13 @@ public final class MoviesActivity extends Activity {
 
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.HORIZONTAL);
+        root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(0xFF0B0D14);
 
-        // ----- barra lateral -----
-        sidebar = new LinearLayout(this);
-        sidebar.setOrientation(LinearLayout.VERTICAL);
-        sidebar.setBackgroundColor(0xFF0A0C12);
-        sidebar.setPadding(dpi(10), dpi(16), dpi(10), dpi(16));
-        sidebar.addView(sideItem("Inicio", "home", false));
-        sidebar.addView(sideItem("Películas", "movies", true));
-        sidebar.addView(sideItem("Series", "series", false));
-        sidebar.addView(sideItem("Favoritos", "fav", false));
-        sidebar.addView(sideItem("Historial", "hist", false));
-        sidebar.addView(sideItem("Ajustes", "settings", false));
-        TextView catLabel = Ui.text(this, "CATEGORÍAS", 9f, 0xFF667788, true);
-        catLabel.setPadding(dpi(8), dpi(14), dpi(4), dpi(6));
-        sidebar.addView(catLabel);
-        ScrollView catScroll = new ScrollView(this);
-        sidebarCats = new LinearLayout(this);
-        sidebarCats.setOrientation(LinearLayout.VERTICAL);
-        catScroll.addView(sidebarCats);
-        sidebar.addView(catScroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-        root.addView(sidebar, new LinearLayout.LayoutParams(dpi(132),
-                LinearLayout.LayoutParams.MATCH_PARENT));
-
-        // ----- columna principal -----
-        LinearLayout column = new LinearLayout(this);
-        column.setOrientation(LinearLayout.VERTICAL);
+        // Sin barra lateral: más espacio para el catálogo (como pidió el usuario)
+        LinearLayout column = root;
+        sidebar = null;
+        sidebarCats = null;
 
         // Cabecera Leny TV | Películas + lupa + ajustes (mismo tamaño)
         LinearLayout top = new LinearLayout(this);
@@ -446,8 +424,6 @@ public final class MoviesActivity extends Activity {
         chipsRow.setVisibility(View.GONE);
         column.addView(chipsRow);
 
-        root.addView(column, new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.MATCH_PARENT, 1f));
         setContentView(root);
     }
 
@@ -518,7 +494,7 @@ public final class MoviesActivity extends Activity {
     }
 
     private void rebuildSidebarCategories() {
-        if (sidebarCats == null) return;
+        if (sidebarCats == null) return; // barra lateral eliminada
         sidebarCats.removeAllViews();
         java.util.LinkedHashMap<String, Integer> counts =
                 new java.util.LinkedHashMap<String, Integer>();
@@ -1761,7 +1737,7 @@ public final class MoviesActivity extends Activity {
                     0xFF1F5AA6, 0xFFFFFFFF, new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            play(source.url, item.title, source.type);
+                            play(source.url, item.title, source.type, item);
                             dialog.dismiss();
                         }
                     });
@@ -1960,54 +1936,56 @@ public final class MoviesActivity extends Activity {
     // -------------------------------------------------------------- reproducir
 
     private void play(String url, String title, String type) {
+        play(url, title, type, null);
+    }
+
+    private void play(String url, String title, String type, MovieItem item) {
         if (url == null || url.trim().length() == 0) {
             toast("Ese enlace está vacío.");
             return;
         }
         final String cleanUrl = url.trim();
         final String cleanType = type == null ? "" : type.trim();
-        // 1) EL MISMO REPRODUCTOR QUE LA TELEVISIÓN.
-        //    Se abre PlayerActivity (la pantalla de reproducción de la TV) en modo
-        //    de enlace único: así la película o el episodio se ven con los MISMOS
-        //    controles, el mismo panel de ajustes, la misma estética y el mismo
-        //    motor que un canal. No se duplica nada: es literalmente su pantalla.
-        //    Lo único que se le pasa es el enlace, el título y las cabeceras del
-        //    módulo (User-Agent, Referer...) como cabeceras propias de este
-        //    enlace, para que el servidor de la película las siga recibiendo.
+        // Reproductor de PELÍCULAS (audio + cambio de fuente)
+        try {
+            Intent intent = new Intent(this, MoviesPlayerActivity.class);
+            intent.putExtra(MoviesPlayerActivity.EXTRA_URL, cleanUrl);
+            intent.putExtra(MoviesPlayerActivity.EXTRA_NAME, title == null ? "" : title);
+            if (cleanType.length() > 0) {
+                intent.putExtra(MoviesPlayerActivity.EXTRA_TYPE, cleanType);
+            }
+            if (item != null && item.sources != null && item.sources.size() > 0) {
+                StringBuilder urls = new StringBuilder();
+                StringBuilder labels = new StringBuilder();
+                for (int i = 0; i < item.sources.size(); i++) {
+                    MovieItem.Source s = item.sources.get(i);
+                    if (s == null || !s.usable()) continue;
+                    if (urls.length() > 0) {
+                        urls.append('\n');
+                        labels.append('\n');
+                    }
+                    urls.append(s.url);
+                    String lab = s.label;
+                    if (lab == null || lab.length() == 0) lab = "Fuente " + (i + 1);
+                    labels.append(lab);
+                }
+                if (urls.length() > 0) {
+                    intent.putExtra(MoviesPlayerActivity.EXTRA_SOURCES, urls.toString());
+                    intent.putExtra(MoviesPlayerActivity.EXTRA_SOURCE_LABELS, labels.toString());
+                }
+            }
+            MoviesPrefs.setLastUrl(this, cleanUrl);
+            startActivity(intent);
+            return;
+        } catch (Throwable t) {
+            Diag.add("Películas · no se pudo abrir el reproductor: " + Net.describe(t));
+        }
         try {
             Intent intent = new Intent(this, PlayerActivity.class);
             intent.putExtra(PlayerActivity.EXTRA_MODE, PlayerActivity.MODE_SINGLE);
             intent.putExtra(PlayerActivity.EXTRA_URL, cleanUrl);
             intent.putExtra(PlayerActivity.EXTRA_NAME, title == null ? "" : title);
-            if (cleanType.length() > 0) {
-                intent.putExtra(PlayerActivity.EXTRA_TYPE, cleanType);
-            }
-            String headersSpec = Headers.toSpec(MoviesPrefs.headers(this));
-            if (headersSpec.length() > 0) {
-                intent.putExtra(PlayerActivity.EXTRA_HEADERS, headersSpec);
-            }
-            MoviesPrefs.setLastUrl(this, cleanUrl);
             startActivity(intent);
-            Diag.add("Películas · reproduciendo con el reproductor de la TV: "
-                    + Diag.channelUrl(cleanUrl));
-            return;
-        } catch (Throwable t) {
-            // La app no se cierra: queda anotado y se prueba el reproductor de
-            // reserva del módulo.
-            Diag.add("Películas · no se pudo abrir el reproductor de la TV: " + Net.describe(t));
-        }
-        // 2) RESERVA: reproductor propio del módulo. Solo se llega aquí si el de
-        //    la TV no se pudo abrir; se avisa para que no parezca lo mismo.
-        try {
-            Intent fallback = new Intent(this, MoviesPlayerActivity.class);
-            fallback.putExtra(MoviesPlayerActivity.EXTRA_URL, cleanUrl);
-            fallback.putExtra(MoviesPlayerActivity.EXTRA_NAME, title);
-            if (cleanType.length() > 0) {
-                fallback.putExtra(MoviesPlayerActivity.EXTRA_TYPE, cleanType);
-            }
-            MoviesPrefs.setLastUrl(this, cleanUrl);
-            startActivity(fallback);
-            toast("Se abre el reproductor de reserva de Películas.");
         } catch (Throwable t) {
             toast("No se pudo abrir el reproductor: " + Net.describe(t));
         }

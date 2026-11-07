@@ -21,7 +21,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.pocketbuilder.app_wslenytvplayer1792356127271.movies.MoviesPlayerActivity;
+
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -233,6 +233,7 @@ public final class EventsActivity extends Activity {
                     13f, 0xFF99AABC, false));
             return;
         }
+        // Dividir por lista/servidor (las 3 listas no se mezclan)
         LinkedHashMap<String, ArrayList<EventItem>> byServer =
                 new LinkedHashMap<String, ArrayList<EventItem>>();
         for (int i = 0; i < all.size(); i++) {
@@ -246,60 +247,91 @@ public final class EventsActivity extends Activity {
             list.add(e);
         }
         for (Map.Entry<String, ArrayList<EventItem>> entry : byServer.entrySet()) {
-            TextView head = Ui.text(this, entry.getKey(), 14f, 0xFFE8EEF8, true);
-            head.setPadding(dpi(4), dpi(12), dpi(4), dpi(8));
+            TextView head = Ui.text(this, "●  " + entry.getKey(), 15f, CYAN, true);
+            head.setPadding(dpi(6), dpi(16), dpi(6), dpi(10));
             rowsBox.addView(head);
+
+            // Rejilla de tarjetas 3 columnas
+            LinearLayout grid = new LinearLayout(this);
+            grid.setOrientation(LinearLayout.VERTICAL);
             ArrayList<EventItem> list = entry.getValue();
+            LinearLayout line = null;
             for (int i = 0; i < list.size(); i++) {
-                rowsBox.addView(eventRow(list.get(i)));
+                if (i % 3 == 0) {
+                    line = new LinearLayout(this);
+                    line.setOrientation(LinearLayout.HORIZONTAL);
+                    LinearLayout.LayoutParams lineLp = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT);
+                    lineLp.bottomMargin = dpi(10);
+                    line.setLayoutParams(lineLp);
+                    grid.addView(line);
+                }
+                line.addView(eventCard(list.get(i)));
             }
+            rowsBox.addView(grid);
         }
     }
 
-    private View eventRow(final EventItem item) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dpi(10), dpi(8), dpi(10), dpi(8));
-        row.setBackground(rounded(0xFF151A24, 10f));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = dpi(6);
-        row.setLayoutParams(lp);
+    private View eventCard(final EventItem item) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dpi(6), dpi(6), dpi(6), dpi(6));
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        cardLp.leftMargin = dpi(4);
+        cardLp.rightMargin = dpi(4);
+        card.setLayoutParams(cardLp);
+        card.setBackground(rounded(0xFF141A26, 12f));
 
+        FrameLayout art = new FrameLayout(this);
         ImageView logo = new ImageView(this);
-        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        logo.setBackgroundColor(0xFF0A0C12);
+        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        logo.setBackgroundColor(0xFF0A0E16);
         String logoUrl = item.logo;
         if (logoUrl == null || logoUrl.length() == 0) logoUrl = EventLists.PLACEHOLDER_LOGO;
         LogoLoader.load(this, logoUrl, logo, item.name);
-        row.addView(logo, new LinearLayout.LayoutParams(dpi(44), dpi(44)));
+        art.addView(logo, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, dpi(100)));
+        // brillo inferior
+        View glow = new View(this);
+        glow.setBackgroundColor(0x6600D4FF);
+        FrameLayout.LayoutParams glowLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, dpi(3), Gravity.BOTTOM);
+        art.addView(glow, glowLp);
+        card.addView(art, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dpi(100)));
 
-        LinearLayout texts = new LinearLayout(this);
-        texts.setOrientation(LinearLayout.VERTICAL);
-        texts.setPadding(dpi(10), 0, 0, 0);
-        TextView name = Ui.text(this, item.name, 13f, 0xFFE8EEF8, true);
+        TextView name = Ui.text(this, item.name, 12f, 0xFFF0F4FA, true);
         name.setMaxLines(2);
-        texts.addView(name);
+        name.setPadding(dpi(6), dpi(8), dpi(6), dpi(2));
+        card.addView(name);
         if (item.group != null && item.group.length() > 0) {
-            texts.addView(Ui.text(this, item.group, 10f, 0xFF8899AA, false));
+            TextView sub = Ui.text(this, item.group, 10f, 0xFF8899AA, false);
+            sub.setMaxLines(1);
+            sub.setPadding(dpi(6), 0, dpi(6), dpi(8));
+            card.addView(sub);
+        } else {
+            View pad = new View(this);
+            card.addView(pad, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dpi(8)));
         }
-        row.addView(texts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        row.setOnClickListener(new View.OnClickListener() {
+        card.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
-                    Intent i = new Intent(EventsActivity.this, MoviesPlayerActivity.class);
-                    i.putExtra(MoviesPlayerActivity.EXTRA_URL, item.url);
-                    i.putExtra(MoviesPlayerActivity.EXTRA_NAME, item.name);
+                    Intent i = new Intent(EventsActivity.this, PlayerActivity.class);
+                    i.putExtra(PlayerActivity.EXTRA_MODE, PlayerActivity.MODE_SINGLE);
+                    i.putExtra(PlayerActivity.EXTRA_URL, item.url);
+                    i.putExtra(PlayerActivity.EXTRA_NAME, item.name);
                     startActivity(i);
                 } catch (Throwable t) {
                     Toast.makeText(EventsActivity.this, "No se pudo reproducir", Toast.LENGTH_SHORT).show();
                 }
             }
         });
-        return row;
+        return card;
     }
 
     private void showSettings() {
