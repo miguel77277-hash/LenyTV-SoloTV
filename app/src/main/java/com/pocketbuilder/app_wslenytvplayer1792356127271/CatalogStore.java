@@ -395,6 +395,50 @@ final class CatalogStore {
      * así aparecen siempre, ya creados, sin que el usuario tenga que añadirlos a
      * mano, y se recuperan aunque se hayan restablecido.
      */
+
+    private static final String DEFAULT_VOD_URL =
+            "http://cdn-abc.xyz:2086/get.php?username=CanalesVen&password=NF8sq6nCEq&type=m3u_plus&output=ts";
+    private static final String KEY_DEFAULT_VOD = "default_vod_seeded_v1";
+
+    /**
+     * Lista VOD por defecto (solo películas). Se añade una vez; el usuario puede
+     * quirla o añadir otras desde Ajustes.
+     */
+    static void seedDefaultVod(Context context) {
+        try {
+            SharedPreferences p = prefs(context);
+            if (p.getBoolean(KEY_DEFAULT_VOD, false)) return;
+            // Si ya hay alguna fuente no-preset activa, no forzar
+            ArrayList<Repo> repos = list(context);
+            boolean hasUser = false;
+            for (int i = 0; i < repos.size(); i++) {
+                Repo r = repos.get(i);
+                if (r == null) continue;
+                if (!r.preset && r.enabled && r.url != null && r.url.length() > 8) {
+                    hasUser = true;
+                    break;
+                }
+            }
+            if (!hasUser) {
+                Repo added = addAny(context, DEFAULT_VOD_URL);
+                if (added != null) {
+                    added.name = "Lista VOD (predeterminada)";
+                    // re-save name
+                    ArrayList<Repo> all = list(context);
+                    for (int i = 0; i < all.size(); i++) {
+                        if (all.get(i).id.equals(added.id)) {
+                            all.get(i).name = "Lista VOD (predeterminada)";
+                            break;
+                        }
+                    }
+                    save(context, all);
+                }
+            }
+            p.edit().putBoolean(KEY_DEFAULT_VOD, true).apply();
+        } catch (Throwable ignored) {
+        }
+    }
+
     static void seedPresets(Context context) {
         if (context == null) return;
         ArrayList<Repo> repos = list(context);

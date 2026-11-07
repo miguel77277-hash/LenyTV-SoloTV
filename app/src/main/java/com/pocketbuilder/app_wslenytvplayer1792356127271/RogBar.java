@@ -52,6 +52,8 @@ final class RogBar {
         void onPower();
 
         void onMovies();
+
+        void onEvents();
     }
 
     private RogBar() {
@@ -127,6 +129,16 @@ final class RogBar {
             }
         });
         bar.addView(moviesBtn, wrap());
+        TextView eventsBtn = Ui.text(ctx, "EVENTOS", 11f, 0xFFFFB020, true);
+        eventsBtn.setPadding(Ui.dpi(ctx, 10), Ui.dpi(ctx, 8), Ui.dpi(ctx, 10), Ui.dpi(ctx, 8));
+        eventsBtn.setBackground(Ui.buttonBg(ctx, 0x33B07010, 0xFFFFB020, 0x66FFC040, 8f));
+        eventsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                host.onEvents();
+            }
+        });
+        bar.addView(eventsBtn, wrap());
         bar.addView(iconButton(ctx, Icons.gear(ctx, RogStyle.GREEN),
                 "Ajustes", new View.OnClickListener() {
                     @Override

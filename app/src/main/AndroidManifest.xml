@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.pocketbuilder.app_wslenytvplayer1792356127271"
-    android:versionCode="110"
-    android:versionName="1.110-movies-ui">
+    android:versionCode="112"
+    android:versionName="1.112-events-default">
 
     <!-- Compatibilidad declarada dentro del APK: Android 10 (API 29) o superior.
          Así el instalador no depende de valores inyectados por la herramienta de
@@ -103,6 +103,12 @@
 
         <!-- INTERFAZ DE PELÍCULAS Y SERIES. Se abre con el botón PELÍCULAS de la
              barra superior de la pantalla de TV. -->
+        <activity
+            android:name=".EventsActivity"
+            android:exported="false"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/LenyTheme" />
         <activity
             android:name=".MoviesActivity"
             android:enabled="true"

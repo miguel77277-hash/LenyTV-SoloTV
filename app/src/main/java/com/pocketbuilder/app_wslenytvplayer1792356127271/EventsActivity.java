@@ -1,0 +1,402 @@
+package com.pocketbuilder.app_wslenytvplayer1792356127271;
+
+import android.app.Activity;
+import android.app.Dialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.pocketbuilder.app_wslenytvplayer1792356127271.movies.MoviesPlayerActivity;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * Módulo Eventos (deportes / en vivo). Independiente de TV y Películas.
+ * Listas M3U agrupadas por servidor; ajustes para añadir o cambiar enlaces.
+ */
+public final class EventsActivity extends Activity {
+
+    private static final int CYAN = 0xFF00D4FF;
+
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService pool = Executors.newSingleThreadExecutor();
+
+    private LinearLayout rowsBox;
+    private LinearLayout loadingBox;
+    private TextView statusView;
+    private boolean loading = false;
+
+    /** Canal de evento: nombre, url, logo, servidor origen. */
+    static final class EventItem {
+        String name = "";
+        String url = "";
+        String logo = "";
+        String server = "";
+        String group = "";
+    }
+
+    private final ArrayList<EventItem> all = new ArrayList<EventItem>();
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        try {
+            Immersion.keepHidden(this);
+        } catch (Throwable ignored) {
+        }
+        EventLists.seedDefaults(this);
+        buildUi();
+        reload();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        try {
+            Immersion.keepHidden(this);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            pool.shutdownNow();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private int dpi(float v) {
+        return Ui.dpi(this, v);
+    }
+
+    private GradientDrawable rounded(int color, float r) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(Ui.dpi(this, r));
+        return g;
+    }
+
+    private void buildUi() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(0xFF0B0D14);
+
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setPadding(dpi(14), dpi(10), dpi(12), dpi(8));
+        top.addView(Ui.text(this, "Leny TV", 16f, CYAN, true));
+        top.addView(Ui.text(this, "  |  ", 14f, 0xFF556070, false));
+        top.addView(Ui.text(this, "Eventos", 15f, 0xFFFFFFFF, true));
+        View sp = new View(this);
+        top.addView(sp, new LinearLayout.LayoutParams(0, 1, 1f));
+        TextView tv = Ui.text(this, "TV", 12f, 0xFFAABBCC, true);
+        tv.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
+        tv.setBackground(rounded(0x22FFFFFF, 10f));
+        tv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
+        top.addView(tv);
+        TextView gear = Ui.text(this, "⚙", 16f, 0xFFE8EEF8, true);
+        gear.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
+        gear.setBackground(rounded(0x22182028, 10f));
+        LinearLayout.LayoutParams gearLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        gearLp.leftMargin = dpi(8);
+        gear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showSettings();
+            }
+        });
+        top.addView(gear, gearLp);
+        root.addView(top);
+
+        statusView = Ui.text(this, "", 11f, 0xFF8899AA, false);
+        statusView.setPadding(dpi(16), dpi(4), dpi(16), dpi(6));
+        root.addView(statusView);
+
+        FrameLayout body = new FrameLayout(this);
+        ScrollView scroll = new ScrollView(this);
+        rowsBox = new LinearLayout(this);
+        rowsBox.setOrientation(LinearLayout.VERTICAL);
+        rowsBox.setPadding(dpi(12), dpi(4), dpi(12), dpi(20));
+        scroll.addView(rowsBox);
+        body.addView(scroll, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        loadingBox = new LinearLayout(this);
+        loadingBox.setOrientation(LinearLayout.VERTICAL);
+        loadingBox.setGravity(Gravity.CENTER);
+        loadingBox.addView(new ProgressBar(this));
+        loadingBox.addView(Ui.text(this, "Cargando eventos…", 12f, 0xFFCCD6E0, false));
+        loadingBox.setVisibility(View.GONE);
+        body.addView(loadingBox, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
+
+        root.addView(body, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        setContentView(root);
+    }
+
+    private void reload() {
+        loading = true;
+        updateLoading();
+        final ArrayList<String> urls = EventLists.urls(this);
+        pool.execute(new Runnable() {
+            @Override
+            public void run() {
+                final ArrayList<EventItem> loaded = new ArrayList<EventItem>();
+                for (int i = 0; i < urls.size(); i++) {
+                    String listUrl = urls.get(i);
+                    String server = EventLists.serverLabel(listUrl);
+                    try {
+                        String text = Net.getText(listUrl, null);
+                        if (text == null || text.length() < 8) continue;
+                        M3uParser.Result parsed = M3uParser.parse(text, listUrl);
+                        if (parsed == null || parsed.channels == null) continue;
+                        for (int c = 0; c < parsed.channels.size(); c++) {
+                            Channel channel = parsed.channels.get(c);
+                            if (channel == null || channel.url == null || channel.url.length() == 0) {
+                                continue;
+                            }
+                            EventItem item = new EventItem();
+                            item.name = channel.name == null ? "Evento" : channel.name;
+                            item.url = channel.url;
+                            item.logo = channel.logo == null ? "" : channel.logo;
+                            item.server = server;
+                            item.group = channel.category == null ? "" : channel.category;
+                            loaded.add(item);
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+                main.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        all.clear();
+                        all.addAll(loaded);
+                        loading = false;
+                        rebuildRows();
+                        updateLoading();
+                    }
+                });
+            }
+        });
+    }
+
+    private void updateLoading() {
+        if (loadingBox != null) {
+            loadingBox.setVisibility(loading ? View.VISIBLE : View.GONE);
+        }
+        if (statusView != null) {
+            if (loading) {
+                statusView.setText("Descargando listas de eventos…");
+            } else {
+                statusView.setText(all.size() + " eventos · ordenados por servidor");
+            }
+        }
+    }
+
+    private void rebuildRows() {
+        if (rowsBox == null) return;
+        rowsBox.removeAllViews();
+        if (all.isEmpty()) {
+            rowsBox.addView(Ui.text(this,
+                    "Sin eventos. Revisa los enlaces en Ajustes ⚙.",
+                    13f, 0xFF99AABC, false));
+            return;
+        }
+        LinkedHashMap<String, ArrayList<EventItem>> byServer =
+                new LinkedHashMap<String, ArrayList<EventItem>>();
+        for (int i = 0; i < all.size(); i++) {
+            EventItem e = all.get(i);
+            String key = e.server == null || e.server.length() == 0 ? "Otros" : e.server;
+            ArrayList<EventItem> list = byServer.get(key);
+            if (list == null) {
+                list = new ArrayList<EventItem>();
+                byServer.put(key, list);
+            }
+            list.add(e);
+        }
+        for (Map.Entry<String, ArrayList<EventItem>> entry : byServer.entrySet()) {
+            TextView head = Ui.text(this, entry.getKey(), 14f, 0xFFE8EEF8, true);
+            head.setPadding(dpi(4), dpi(12), dpi(4), dpi(8));
+            rowsBox.addView(head);
+            ArrayList<EventItem> list = entry.getValue();
+            for (int i = 0; i < list.size(); i++) {
+                rowsBox.addView(eventRow(list.get(i)));
+            }
+        }
+    }
+
+    private View eventRow(final EventItem item) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dpi(10), dpi(8), dpi(10), dpi(8));
+        row.setBackground(rounded(0xFF151A24, 10f));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dpi(6);
+        row.setLayoutParams(lp);
+
+        ImageView logo = new ImageView(this);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        logo.setBackgroundColor(0xFF0A0C12);
+        String logoUrl = item.logo;
+        if (logoUrl == null || logoUrl.length() == 0) logoUrl = EventLists.PLACEHOLDER_LOGO;
+        LogoLoader.load(this, logoUrl, logo, item.name);
+        row.addView(logo, new LinearLayout.LayoutParams(dpi(44), dpi(44)));
+
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.setPadding(dpi(10), 0, 0, 0);
+        TextView name = Ui.text(this, item.name, 13f, 0xFFE8EEF8, true);
+        name.setMaxLines(2);
+        texts.addView(name);
+        if (item.group != null && item.group.length() > 0) {
+            texts.addView(Ui.text(this, item.group, 10f, 0xFF8899AA, false));
+        }
+        row.addView(texts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    Intent i = new Intent(EventsActivity.this, MoviesPlayerActivity.class);
+                    i.putExtra(MoviesPlayerActivity.EXTRA_URL, item.url);
+                    i.putExtra(MoviesPlayerActivity.EXTRA_NAME, item.name);
+                    startActivity(i);
+                } catch (Throwable t) {
+                    Toast.makeText(EventsActivity.this, "No se pudo reproducir", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        return row;
+    }
+
+    private void showSettings() {
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dpi(16), dpi(14), dpi(16), dpi(14));
+        panel.setBackground(rounded(0xF2140E14, 14f));
+        panel.addView(Ui.text(this, "AJUSTES DE EVENTOS", 13f, CYAN, true));
+        panel.addView(Ui.text(this,
+                "Añade o cambia enlaces M3U de eventos. Las listas se agrupan por servidor.",
+                11f, 0xFF99AABC, false));
+
+        final EditText field = new EditText(this);
+        field.setHint("https://…/lista.m3u");
+        field.setHintTextColor(0xFF667788);
+        field.setTextColor(0xFFE8EEF8);
+        field.setSingleLine(true);
+        field.setBackground(rounded(0x22182028, 10f));
+        field.setPadding(dpi(12), dpi(10), dpi(12), dpi(10));
+        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        fieldLp.topMargin = dpi(12);
+        panel.addView(field, fieldLp);
+
+        TextView add = Ui.text(this, "  Añadir enlace  ", 13f, 0xFF001018, true);
+        add.setBackground(rounded(CYAN, 10f));
+        add.setPadding(dpi(14), dpi(10), dpi(14), dpi(10));
+        LinearLayout.LayoutParams addLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        addLp.topMargin = dpi(10);
+        add.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String u = field.getText() == null ? "" : field.getText().toString().trim();
+                if (u.length() < 8) {
+                    Toast.makeText(EventsActivity.this, "Enlace no válido", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                EventLists.addUrl(EventsActivity.this, u);
+                field.setText("");
+                Toast.makeText(EventsActivity.this, "Enlace añadido", Toast.LENGTH_SHORT).show();
+                reload();
+            }
+        });
+        panel.addView(add, addLp);
+
+        TextView refresh = Ui.text(this, "  Actualizar listas  ", 13f, 0xFFE8EEF8, true);
+        refresh.setBackground(rounded(0x44FFFFFF, 10f));
+        refresh.setPadding(dpi(14), dpi(10), dpi(14), dpi(10));
+        LinearLayout.LayoutParams refLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        refLp.topMargin = dpi(8);
+        refresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                reload();
+            }
+        });
+        panel.addView(refresh, refLp);
+
+        // Lista de URLs actuales
+        ArrayList<String> urls = EventLists.urls(this);
+        for (int i = 0; i < urls.size(); i++) {
+            final String u = urls.get(i);
+            LinearLayout line = new LinearLayout(this);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            line.setGravity(Gravity.CENTER_VERTICAL);
+            line.setPadding(0, dpi(8), 0, 0);
+            TextView label = Ui.text(this, EventLists.serverLabel(u), 11f, 0xFFCCD6E0, false);
+            label.setMaxLines(1);
+            line.addView(label, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            TextView del = Ui.text(this, "Quitar", 11f, 0xFFFF8899, true);
+            del.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    EventLists.removeUrl(EventsActivity.this, u);
+                    dialog.dismiss();
+                    showSettings();
+                    reload();
+                }
+            });
+            line.addView(del);
+            panel.addView(line);
+        }
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(panel);
+        dialog.setContentView(scroll);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.9f),
+                    WindowManager.LayoutParams.WRAP_CONTENT);
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
+        }
+        dialog.show();
+    }
+}

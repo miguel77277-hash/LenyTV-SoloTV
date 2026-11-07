@@ -112,6 +112,8 @@ public final class MoviesActivity extends Activity {
     private TextView heroPlot;
     private TextView heroBadge;
     private LinearLayout sidebar;
+    private LinearLayout sidebarCats;
+    private String selectedSidebarGenre = "";
     private String sidebarSection = "movies";
     private MovieItem featured;
     /** Último informe de fuentes (se enseña en el panel de ajustes). */
@@ -143,6 +145,7 @@ public final class MoviesActivity extends Activity {
         MoviesGuard.install(this);
         try {
             CatalogStore.seedPresets(this);
+            CatalogStore.seedDefaultVod(this);
             buildUi();
         } catch (Throwable t) {
             Diag.add("Películas · no se pudo dibujar la pantalla: " + Net.describe(t));
@@ -250,14 +253,23 @@ public final class MoviesActivity extends Activity {
         sidebar.addView(sideItem("Favoritos", "fav", false));
         sidebar.addView(sideItem("Historial", "hist", false));
         sidebar.addView(sideItem("Ajustes", "settings", false));
-        root.addView(sidebar, new LinearLayout.LayoutParams(dpi(118),
+        TextView catLabel = Ui.text(this, "CATEGORÍAS", 9f, 0xFF667788, true);
+        catLabel.setPadding(dpi(8), dpi(14), dpi(4), dpi(6));
+        sidebar.addView(catLabel);
+        ScrollView catScroll = new ScrollView(this);
+        sidebarCats = new LinearLayout(this);
+        sidebarCats.setOrientation(LinearLayout.VERTICAL);
+        catScroll.addView(sidebarCats);
+        sidebar.addView(catScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        root.addView(sidebar, new LinearLayout.LayoutParams(dpi(132),
                 LinearLayout.LayoutParams.MATCH_PARENT));
 
         // ----- columna principal -----
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
 
-        // Cabecera Leny TV | Películas
+        // Cabecera Leny TV | Películas + lupa + ajustes (mismo tamaño)
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
@@ -280,42 +292,28 @@ public final class MoviesActivity extends Activity {
             }
         });
         top.addView(tvBtn);
-        TextView gear = Ui.iconButton(this, Icons.gear(this, 0xFFE8EEF8), "Ajustes", 42f);
-        gear.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showToolsPanel();
-            }
-        });
-        LinearLayout.LayoutParams gearLp = new LinearLayout.LayoutParams(dpi(42), dpi(42));
-        gearLp.leftMargin = dpi(8);
-        top.addView(gear, gearLp);
+        // Lupa: abre buscador aparte
+        top.addView(headerIconButton(Icons.search(this, 0xFFE8EEF8), "Buscar",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        showSearchPanel();
+                    }
+                }));
+        // Ajustes: mismo cuadro que la lupa
+        top.addView(headerIconButton(Icons.gear(this, 0xFFE8EEF8), "Ajustes",
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        showToolsPanel();
+                    }
+                }));
         column.addView(top, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // Búsqueda compacta
-        LinearLayout searchRow = new LinearLayout(this);
-        searchRow.setOrientation(LinearLayout.HORIZONTAL);
-        searchRow.setPadding(dpi(16), 0, dpi(16), dpi(6));
+        // Campo de búsqueda oculto (lo usa el panel de búsqueda)
         searchField = new EditText(this);
-        searchField.setHint("Buscar película o serie");
-        searchField.setHintTextColor(0xFF667788);
-        searchField.setTextColor(0xFFE8EEF8);
-        searchField.setBackground(rounded(0x22182028, 10f));
-        searchField.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
-        searchField.setSingleLine(true);
-        searchField.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
-            @Override
-            public void afterTextChanged(Editable s) {
-                searchText = s == null ? "" : s.toString().trim().toLowerCase(Locale.US);
-                applyFilter();
-            }
-        });
-        searchRow.addView(searchField, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        column.addView(searchRow);
+        searchField.setVisibility(View.GONE);
 
         FrameLayout content = new FrameLayout(this);
 
@@ -507,7 +505,162 @@ public final class MoviesActivity extends Activity {
         sidebar.addView(sideItem("Favoritos", "fav", "fav".equals(sidebarSection)));
         sidebar.addView(sideItem("Historial", "hist", "hist".equals(sidebarSection)));
         sidebar.addView(sideItem("Ajustes", "settings", false));
+        TextView catLabel = Ui.text(this, "CATEGORÍAS", 9f, 0xFF667788, true);
+        catLabel.setPadding(dpi(8), dpi(14), dpi(4), dpi(6));
+        sidebar.addView(catLabel);
+        ScrollView catScroll = new ScrollView(this);
+        sidebarCats = new LinearLayout(this);
+        sidebarCats.setOrientation(LinearLayout.VERTICAL);
+        catScroll.addView(sidebarCats);
+        sidebar.addView(catScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        rebuildSidebarCategories();
     }
+
+    private void rebuildSidebarCategories() {
+        if (sidebarCats == null) return;
+        sidebarCats.removeAllViews();
+        java.util.LinkedHashMap<String, Integer> counts =
+                new java.util.LinkedHashMap<String, Integer>();
+        for (int i = 0; i < allItems.size(); i++) {
+            MovieItem item = allItems.get(i);
+            if (item == null) continue;
+            if (MovieItem.KIND_MOVIE.equals(selectedKind) && item.isSeries()) continue;
+            if (MovieItem.KIND_SERIES.equals(selectedKind) && !item.isSeries()) continue;
+            if (item.genres == null || item.genres.isEmpty()) {
+                Integer c = counts.get("Otros");
+                counts.put("Otros", c == null ? 1 : c.intValue() + 1);
+                continue;
+            }
+            for (int g = 0; g < item.genres.size(); g++) {
+                String genre = item.genres.get(g);
+                if (genre == null || genre.trim().length() == 0) continue;
+                Integer c = counts.get(genre);
+                counts.put(genre, c == null ? 1 : c.intValue() + 1);
+            }
+        }
+        if (counts.isEmpty()) {
+            TextView empty = Ui.text(this, "Sin categorías", 10f, 0xFF556070, false);
+            empty.setPadding(dpi(8), dpi(4), dpi(4), dpi(4));
+            sidebarCats.addView(empty);
+            return;
+        }
+        for (java.util.Map.Entry<String, Integer> e : counts.entrySet()) {
+            final String genre = e.getKey();
+            boolean on = genre.equals(selectedSidebarGenre);
+            TextView row = Ui.text(this, genre + " · " + e.getValue(), 10f,
+                    on ? 0xFFFFFFFF : 0xFF8A93A3, on);
+            row.setPadding(dpi(8), dpi(8), dpi(6), dpi(8));
+            if (on) row.setBackground(roundedStroke(0x2210A0C0, 0xFF00D4FF, 8f));
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (genre.equals(selectedSidebarGenre)) {
+                        selectedSidebarGenre = "";
+                        selectedGenre = "";
+                    } else {
+                        selectedSidebarGenre = genre;
+                        selectedGenre = genre;
+                    }
+                    rebuildSidebarCategories();
+                    applyFilter();
+                }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.bottomMargin = dpi(3);
+            row.setLayoutParams(lp);
+            sidebarCats.addView(row);
+        }
+    }
+
+    private View headerIconButton(android.graphics.drawable.Drawable icon, String desc,
+                                  View.OnClickListener click) {
+        FrameLayout box = new FrameLayout(this);
+        int size = dpi(40);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+        lp.leftMargin = dpi(8);
+        box.setLayoutParams(lp);
+        box.setBackground(roundedStroke(0x22182028, 0x44FFFFFF, 10f));
+        box.setClickable(true);
+        box.setFocusable(true);
+        box.setContentDescription(desc);
+        ImageView iv = new ImageView(this);
+        iv.setImageDrawable(icon);
+        iv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        int pad = dpi(9);
+        FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        iv.setPadding(pad, pad, pad, pad);
+        box.addView(iv, ilp);
+        box.setOnClickListener(click);
+        return box;
+    }
+
+    private void showSearchPanel() {
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dpi(16), dpi(14), dpi(16), dpi(14));
+        panel.setBackground(rounded(0xF2140E14, 14f));
+        panel.addView(Ui.text(this, "BUSCAR", 13f, CYAN, true));
+        final EditText field = new EditText(this);
+        field.setHint("Nombre de película o serie");
+        field.setHintTextColor(0xFF667788);
+        field.setTextColor(0xFFE8EEF8);
+        field.setSingleLine(true);
+        field.setText(searchText);
+        field.setBackground(rounded(0x22182028, 10f));
+        field.setPadding(dpi(12), dpi(10), dpi(12), dpi(10));
+        LinearLayout.LayoutParams fieldLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        fieldLp.topMargin = dpi(12);
+        panel.addView(field, fieldLp);
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setPadding(0, dpi(14), 0, 0);
+        TextView ok = Ui.text(this, "  Buscar  ", 13f, 0xFF001018, true);
+        ok.setBackground(rounded(0xFF00D4FF, 10f));
+        ok.setPadding(dpi(14), dpi(10), dpi(14), dpi(10));
+        ok.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                searchText = field.getText() == null ? ""
+                        : field.getText().toString().trim().toLowerCase(Locale.US);
+                applyFilter();
+                dialog.dismiss();
+            }
+        });
+        actions.addView(ok);
+        TextView clear = Ui.text(this, "  Limpiar  ", 13f, 0xFFE8EEF8, true);
+        clear.setBackground(rounded(0x44FFFFFF, 10f));
+        clear.setPadding(dpi(14), dpi(10), dpi(14), dpi(10));
+        LinearLayout.LayoutParams clearLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        clearLp.leftMargin = dpi(10);
+        clear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                searchText = "";
+                field.setText("");
+                applyFilter();
+                dialog.dismiss();
+            }
+        });
+        actions.addView(clear, clearLp);
+        panel.addView(actions);
+        dialog.setContentView(panel);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.86f),
+                    WindowManager.LayoutParams.WRAP_CONTENT);
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
+        }
+        dialog.show();
+        field.requestFocus();
+    }
+
 
     private GradientDrawable rounded(int color, float radiusDp) {
         GradientDrawable g = new GradientDrawable();
@@ -646,7 +799,7 @@ public final class MoviesActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // 2) Listas Xtream, Enlaces, actualizar y ajustes del módulo.
-        TextView moreLabel = Ui.text(this, "MÁS OPCIONES", 10f, RogStyle.TEXT_DIM, true);
+        TextView moreLabel = Ui.text(this, "CATÁLOGO", 10f, RogStyle.TEXT_DIM, true);
         moreLabel.setLetterSpacing(0.1f);
         moreLabel.setPadding(dpi(2), dpi(16), dpi(2), dpi(6));
         panel.addView(moreLabel);
@@ -658,24 +811,7 @@ public final class MoviesActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        row.addView(button("LISTAS XTREAM", 0xFF1F5AA6, 0xFFFFFFFF,
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        dialog.dismiss();
-                        openXtream();
-                    }
-                }), leftGap(0));
-
-        row.addView(button("ENLACES", 0xFF2B2B40, RogStyle.TEXT, new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                openRepos();
-            }
-        }), leftGap(8));
-
-        row.addView(button("ACTUALIZAR TODO", RogStyle.BLUE_BOX, 0xFFFFFFFF,
+        row.addView(button("ACTUALIZAR CATÁLOGO", RogStyle.BLUE_BOX, 0xFFFFFFFF,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -1054,7 +1190,7 @@ public final class MoviesActivity extends Activity {
                 + "Si es de Xtream, la app pregunta solo por sus películas y series a la API, sin "
                 + "descargar la lista entera; y si es un .m3u, se queda con sus películas y "
                 + "series. Los episodios de cada serie se cargan al abrirla.\n"
-                + "También puedes añadir un catálogo JSON o un proveedor desde ENLACES.",
+                + "Los episodios de cada serie se cargan al abrirla.",
                 11.5f, 0xFFE4DCDC, false);
         body.setGravity(Gravity.CENTER);
         body.setLineSpacing(0f, 1.2f);
@@ -1073,22 +1209,6 @@ public final class MoviesActivity extends Activity {
                         showToolsPanel();
                     }
                 }), leftGap(0));
-
-        actions.addView(button("LISTAS XTREAM", 0xFF2B2B40, RogStyle.TEXT,
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        openXtream();
-                    }
-                }), leftGap(8));
-
-        actions.addView(button("ENLACES", 0xFF2B2B40, RogStyle.TEXT,
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        openRepos();
-                    }
-                }), leftGap(8));
 
         // En pantallas estrechas los botones no se cortan: se deslizan.
         HorizontalScrollView actionsScroll = new HorizontalScrollView(this);
@@ -1171,6 +1291,7 @@ public final class MoviesActivity extends Activity {
         }
         if (adapter != null) adapter.notifyDataSetChanged();
         rebuildCatalogRows();
+        rebuildSidebarCategories();
         updateStatus();
     }
 
@@ -1362,8 +1483,7 @@ public final class MoviesActivity extends Activity {
             }
         }
         if (enabled.isEmpty()) {
-            toast("Todavía no has añadido ninguna lista. Usa el botón de ajustes ⚙ "
-                    + "(LISTAS XTREAM o ENLACES).");
+            toast("Todavía no has añadido ninguna lista. Usa Ajustes y pega el enlace M3U.");
             return;
         }
         for (int i = 0; i < enabled.size(); i++) refreshRepo(enabled.get(i), true);
