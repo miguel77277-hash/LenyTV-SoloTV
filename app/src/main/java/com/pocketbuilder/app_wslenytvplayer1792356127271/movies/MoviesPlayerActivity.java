@@ -1059,6 +1059,32 @@ public final class MoviesPlayerActivity extends Activity implements SurfaceHolde
         }
     }
 
+    private void showSourcePicker() {
+        if (sourceUrls.isEmpty()) {
+            Toast.makeText(this, "Solo hay una fuente", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String[] items = sourceLabels.toArray(new String[0]);
+        android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(this);
+        b.setTitle("Elegir fuente");
+        b.setItems(items, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                if (which < 0 || which >= sourceUrls.size()) return;
+                url = sourceUrls.get(which);
+                autoRetries = 0;
+                open(false);
+                Toast.makeText(MoviesPlayerActivity.this,
+                        "Fuente: " + items[which], Toast.LENGTH_SHORT).show();
+            }
+        });
+        b.setNegativeButton("Cerrar", null);
+        try {
+            b.show();
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void showAudioPicker() {
         if (media3 == null) {
             Toast.makeText(this, "Reproductor no listo", Toast.LENGTH_SHORT).show();
