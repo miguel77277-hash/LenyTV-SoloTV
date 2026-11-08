@@ -396,43 +396,34 @@ final class CatalogStore {
      * mano, y se recuperan aunque se hayan restablecido.
      */
 
-    private static final String DEFAULT_VOD_URL =
-            "http://cdn-abc.xyz:2086/get.php?username=CanalesVen&password=NF8sq6nCEq&type=m3u_plus&output=ts";
-    private static final String KEY_DEFAULT_VOD = "default_vod_seeded_v1";
+    private static final String[] DEFAULT_VOD_URLS = new String[]{
+            "http://cdn-abc.xyz:2086/get.php?username=CanalesVen&password=NF8sq6nCEq&type=m3u_plus&output=ts",
+            "http://www.1play.cool:25461/get.php?username=Antonio30&password=bdb3a18bc6&type=m3u_plus&output=ts"
+    };
+    private static final String KEY_DEFAULT_VOD = "default_vod_seeded_v2";
 
     /**
-     * Lista VOD por defecto (solo películas). Se añade una vez; el usuario puede
-     * quirla o añadir otras desde Ajustes.
+     * Listas VOD por defecto (películas/series). Se añaden una vez; el usuario
+     * puede quitarlas o añadir otras desde Ajustes.
      */
     static void seedDefaultVod(Context context) {
         try {
             SharedPreferences p = prefs(context);
             if (p.getBoolean(KEY_DEFAULT_VOD, false)) return;
-            // Si ya hay alguna fuente no-preset activa, no forzar
-            ArrayList<Repo> repos = list(context);
-            boolean hasUser = false;
-            for (int i = 0; i < repos.size(); i++) {
-                Repo r = repos.get(i);
-                if (r == null) continue;
-                if (!r.preset && r.enabled && r.url != null && r.url.length() > 8) {
-                    hasUser = true;
-                    break;
-                }
-            }
-            if (!hasUser) {
-                Repo added = addAny(context, DEFAULT_VOD_URL);
-                if (added != null) {
-                    added.name = "Lista VOD (predeterminada)";
-                    // re-save name
-                    ArrayList<Repo> all = list(context);
-                    for (int i = 0; i < all.size(); i++) {
-                        if (all.get(i).id.equals(added.id)) {
-                            all.get(i).name = "Lista VOD (predeterminada)";
-                            break;
-                        }
+            for (int u = 0; u < DEFAULT_VOD_URLS.length; u++) {
+                String url = DEFAULT_VOD_URLS[u];
+                Repo added = addAny(context, url);
+                if (added == null) continue;
+                String name = u == 0 ? "Lista VOD (predeterminada)" : "Lista VOD 2 (1play)";
+                ArrayList<Repo> all = list(context);
+                for (int i = 0; i < all.size(); i++) {
+                    if (all.get(i).id.equals(added.id)) {
+                        all.get(i).name = name;
+                        all.get(i).enabled = true;
+                        break;
                     }
-                    save(context, all);
                 }
+                save(context, all);
             }
             p.edit().putBoolean(KEY_DEFAULT_VOD, true).apply();
         } catch (Throwable ignored) {

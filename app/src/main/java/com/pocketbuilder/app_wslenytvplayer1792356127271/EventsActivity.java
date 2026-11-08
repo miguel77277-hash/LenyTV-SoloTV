@@ -246,10 +246,13 @@ public final class EventsActivity extends Activity {
                     13f, 0xFF99AABC, false));
             return;
         }
+        if (selectedServer.length() == 0 && !all.isEmpty()) {
+            selectedServer = all.get(0).server == null ? "" : all.get(0).server;
+        }
         ArrayList<EventItem> filtered = new ArrayList<EventItem>();
         for (int i = 0; i < all.size(); i++) {
             EventItem e = all.get(i);
-            if (selectedServer.length() > 0 && !selectedServer.equals(e.server)) continue;
+            if (!selectedServer.equals(e.server)) continue;
             filtered.add(e);
         }
         if (filtered.isEmpty()) {
@@ -289,10 +292,12 @@ public final class EventsActivity extends Activity {
             Integer c = servers.get(s);
             servers.put(s, c == null ? 1 : c.intValue() + 1);
         }
-        // Chip "Todos"
-        serverChips.addView(serverChip("Todos", "", selectedServer.length() == 0));
+        // Solo pestañas individuales (sin "Todos")
+        boolean stillValid = selectedServer.length() > 0 && servers.containsKey(selectedServer);
+        if (!stillValid && !servers.isEmpty()) {
+            selectedServer = servers.keySet().iterator().next();
+        }
         for (Map.Entry<String, Integer> e : servers.entrySet()) {
-            // Etiqueta corta
             String label = e.getKey();
             if (label.length() > 28) label = label.substring(0, 26) + "…";
             label = label + " (" + e.getValue() + ")";
