@@ -1799,6 +1799,18 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         ui.postDelayed(hideControls, seconds * 1000L);
     }
 
+    private void seekMoviesByMs(long deltaMs) {
+        if (!moviesAudio || media3 == null) return;
+        try {
+            long pos = media3.getCurrentPosition() + deltaMs;
+            if (pos < 0L) pos = 0L;
+            long dur = media3.getDuration();
+            if (dur > 0L && pos > dur) pos = dur;
+            media3.seekTo(pos);
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void showMoviesAudioPicker() {
         if (!moviesAudio || media3 == null) return;
         try {
