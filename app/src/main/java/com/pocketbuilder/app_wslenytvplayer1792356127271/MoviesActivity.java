@@ -150,6 +150,24 @@ public final class MoviesActivity extends Activity {
             CatalogStore.seedPresets(this);
             CatalogStore.seedDefaultVod(this);
             buildUi();
+            // Forzar descarga de las listas VOD por defecto si aún no tienen catálogo
+            main.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        ArrayList<CatalogStore.Repo> defs = CatalogStore.defaultVodRepos(MoviesActivity.this);
+                        for (int i = 0; i < defs.size(); i++) {
+                            CatalogStore.Repo r = defs.get(i);
+                            if (r == null) continue;
+                            if (!r.hasItems() || r.stale()) {
+                                refreshRepo(r, false);
+                            }
+                        }
+                        rebuildListChips();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
         } catch (Throwable t) {
             Diag.add("Películas · no se pudo dibujar la pantalla: " + Net.describe(t));
             showEmergencyScreen();
@@ -1306,6 +1324,7 @@ public final class MoviesActivity extends Activity {
         listChips.removeAllViews();
         java.util.LinkedHashMap<String, Integer> repos =
                 new java.util.LinkedHashMap<String, Integer>();
+        // Contar títulos por fuente
         for (int i = 0; i < allItems.size(); i++) {
             MovieItem item = allItems.get(i);
             if (item == null) continue;
@@ -1314,6 +1333,18 @@ public final class MoviesActivity extends Activity {
             Integer c = repos.get(rn);
             repos.put(rn, c == null ? 1 : c.intValue() + 1);
         }
+        // Añadir listas guardadas aunque aún no tengan títulos (pestaña visible)
+        try {
+            ArrayList<CatalogStore.Repo> saved = CatalogStore.list(this);
+            for (int i = 0; i < saved.size(); i++) {
+                CatalogStore.Repo r = saved.get(i);
+                if (r == null || !r.enabled || r.needsUrl()) continue;
+                String title = r.title();
+                if (title == null || title.length() == 0) title = "Lista";
+                if (!repos.containsKey(title)) repos.put(title, 0);
+            }
+        } catch (Throwable ignored) {
+        }
         if (repos.isEmpty()) return;
         boolean valid = selectedRepo.length() > 0 && repos.containsKey(selectedRepo);
         if (!valid) selectedRepo = repos.keySet().iterator().next();
@@ -1321,7 +1352,7 @@ public final class MoviesActivity extends Activity {
             final String key = e.getKey();
             boolean on = key.equals(selectedRepo);
             String label = key;
-            if (label.length() > 26) label = label.substring(0, 24) + "…";
+            if (label.length() > 22) label = label.substring(0, 20) + "…";
             label = label + " (" + e.getValue() + ")";
             TextView chip = Ui.text(this, label, 11f, on ? 0xFF001018 : 0xFFE8EEF8, true);
             chip.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));

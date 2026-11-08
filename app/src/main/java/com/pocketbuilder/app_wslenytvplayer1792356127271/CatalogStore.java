@@ -400,34 +400,71 @@ final class CatalogStore {
             "http://cdn-abc.xyz:2086/get.php?username=CanalesVen&password=NF8sq6nCEq&type=m3u_plus&output=ts",
             "http://www.1play.cool:25461/get.php?username=Antonio30&password=bdb3a18bc6&type=m3u_plus&output=ts"
     };
-    private static final String KEY_DEFAULT_VOD = "default_vod_seeded_v2";
+    private static final String[] DEFAULT_VOD_NAMES = new String[]{
+            "CanalesVen VOD",
+            "1play VOD"
+    };
 
     /**
-     * Listas VOD por defecto (películas/series). Se añaden una vez; el usuario
-     * puede quitarlas o añadir otras desde Ajustes.
+     * Asegura las listas VOD por defecto. Se puede llamar siempre: no duplica.
      */
     static void seedDefaultVod(Context context) {
+        if (context == null) return;
         try {
-            SharedPreferences p = prefs(context);
-            if (p.getBoolean(KEY_DEFAULT_VOD, false)) return;
             for (int u = 0; u < DEFAULT_VOD_URLS.length; u++) {
                 String url = DEFAULT_VOD_URLS[u];
+                String name = DEFAULT_VOD_NAMES[u];
                 Repo added = addAny(context, url);
                 if (added == null) continue;
-                String name = u == 0 ? "Lista VOD (predeterminada)" : "Lista VOD 2 (1play)";
                 ArrayList<Repo> all = list(context);
                 for (int i = 0; i < all.size(); i++) {
-                    if (all.get(i).id.equals(added.id)) {
-                        all.get(i).name = name;
-                        all.get(i).enabled = true;
-                        break;
+                    Repo r = all.get(i);
+                    if (r == null || !r.id.equals(added.id)) continue;
+                    r.enabled = true;
+                    if (r.name == null || r.name.length() == 0
+                            || r.name.startsWith("Xtream ·")) {
+                        r.name = name;
                     }
+                    break;
                 }
                 save(context, all);
             }
-            p.edit().putBoolean(KEY_DEFAULT_VOD, true).apply();
         } catch (Throwable ignored) {
         }
+    }
+
+    /** Ids de las listas VOD por defecto (para forzar descarga). */
+    static ArrayList<Repo> defaultVodRepos(Context context) {
+        ArrayList<Repo> out = new ArrayList<Repo>();
+        if (context == null) return out;
+        seedDefaultVod(context);
+        ArrayList<Repo> all = list(context);
+        for (int u = 0; u < DEFAULT_VOD_URLS.length; u++) {
+            String url = DEFAULT_VOD_URLS[u];
+            for (int i = 0; i < all.size(); i++) {
+                Repo r = all.get(i);
+                if (r == null) continue;
+                if (r.isXtream()) {
+                    // Coincide por host del get.php
+                    try {
+                        XtreamClient.Parsed parsed = XtreamClient.xtreamFrom(url);
+                        if (parsed != null && parsed.ok()
+                                && r.server != null
+                                && r.server.equalsIgnoreCase(parsed.server)
+                                && r.user != null
+                                && r.user.equalsIgnoreCase(parsed.user)) {
+                            out.add(r);
+                            break;
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                } else if (r.url != null && r.url.equalsIgnoreCase(url.trim())) {
+                    out.add(r);
+                    break;
+                }
+            }
+        }
+        return out;
     }
 
     static void seedPresets(Context context) {
