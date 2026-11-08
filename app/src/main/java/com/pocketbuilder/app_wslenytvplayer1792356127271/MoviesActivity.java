@@ -155,14 +155,17 @@ public final class MoviesActivity extends Activity {
                 @Override
                 public void run() {
                     try {
+                        CatalogStore.seedDefaultVod(MoviesActivity.this);
                         ArrayList<CatalogStore.Repo> defs = CatalogStore.defaultVodRepos(MoviesActivity.this);
                         for (int i = 0; i < defs.size(); i++) {
                             CatalogStore.Repo r = defs.get(i);
                             if (r == null) continue;
-                            if (!r.hasItems() || r.stale()) {
-                                refreshRepo(r, false);
+                            // 1play y similares: forzar descarga M3U si van a 0
+                            if (!r.hasItems() || r.stale() || r.itemCount <= 0) {
+                                refreshRepo(r, true);
                             }
                         }
+                        reloadLocal();
                         rebuildListChips();
                     } catch (Throwable ignored) {
                     }
@@ -1547,7 +1550,6 @@ public final class MoviesActivity extends Activity {
             if (repo == null || !repo.enabled || repo.needsUrl()) continue;
             if (repo.stale() || !repo.hasItems()) {
                 refreshRepo(repo, false);
-                return;
             }
         }
     }

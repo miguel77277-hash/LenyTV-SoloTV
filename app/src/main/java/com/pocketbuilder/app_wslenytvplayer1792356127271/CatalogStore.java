@@ -406,26 +406,65 @@ final class CatalogStore {
     };
 
     /**
-     * Asegura las listas VOD por defecto. Se puede llamar siempre: no duplica.
+     * Asegura las listas VOD por defecto como enlace M3U (get.php), NO como API
+     * Xtream: algunos paneles no responden bien a player_api y sí al m3u_plus.
      */
     static void seedDefaultVod(Context context) {
         if (context == null) return;
         try {
             for (int u = 0; u < DEFAULT_VOD_URLS.length; u++) {
-                String url = DEFAULT_VOD_URLS[u];
+                String url = DEFAULT_VOD_URLS[u].trim();
                 String name = DEFAULT_VOD_NAMES[u];
-                Repo added = addAny(context, url);
-                if (added == null) continue;
                 ArrayList<Repo> all = list(context);
+                Repo found = null;
+                // Buscar por URL exacta o por host+user de get.php ya guardado como Xtream
                 for (int i = 0; i < all.size(); i++) {
                     Repo r = all.get(i);
-                    if (r == null || !r.id.equals(added.id)) continue;
-                    r.enabled = true;
-                    if (r.name == null || r.name.length() == 0
-                            || r.name.startsWith("Xtream ·")) {
-                        r.name = name;
+                    if (r == null) continue;
+                    if (url.equalsIgnoreCase(r.url)) {
+                        found = r;
+                        break;
                     }
-                    break;
+                    if (r.isXtream()) {
+                        try {
+                            XtreamClient.Parsed parsed = XtreamClient.xtreamFrom(url);
+                            if (parsed != null && parsed.ok()
+                                    && r.server != null
+                                    && r.server.equalsIgnoreCase(parsed.server)
+                                    && r.user != null
+                                    && r.user.equalsIgnoreCase(parsed.user)) {
+                                // Convertir a lista M3U completa (más fiable para VOD)
+                                r.kind = KIND_JSON;
+                                r.url = url;
+                                r.server = "";
+                                r.user = "";
+                                r.pass = "";
+                                r.name = name;
+                                r.enabled = true;
+                                found = r;
+                                break;
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+                if (found == null) {
+                    Repo repo = new Repo();
+                    repo.url = url;
+                    repo.id = "v" + Long.toString(System.currentTimeMillis() + u, 36);
+                    repo.name = name;
+                    repo.enabled = true;
+                    repo.kind = KIND_JSON;
+                    all.add(repo);
+                    found = repo;
+                } else {
+                    found.enabled = true;
+                    found.url = url;
+                    found.name = name;
+                    found.kind = KIND_JSON;
+                    found.server = "";
+                    found.user = "";
+                    found.pass = "";
                 }
                 save(context, all);
             }
@@ -433,32 +472,18 @@ final class CatalogStore {
         }
     }
 
-    /** Ids de las listas VOD por defecto (para forzar descarga). */
+    /** Listas VOD por defecto (para forzar descarga). */
     static ArrayList<Repo> defaultVodRepos(Context context) {
         ArrayList<Repo> out = new ArrayList<Repo>();
         if (context == null) return out;
         seedDefaultVod(context);
         ArrayList<Repo> all = list(context);
         for (int u = 0; u < DEFAULT_VOD_URLS.length; u++) {
-            String url = DEFAULT_VOD_URLS[u];
+            String url = DEFAULT_VOD_URLS[u].trim();
             for (int i = 0; i < all.size(); i++) {
                 Repo r = all.get(i);
-                if (r == null) continue;
-                if (r.isXtream()) {
-                    // Coincide por host del get.php
-                    try {
-                        XtreamClient.Parsed parsed = XtreamClient.xtreamFrom(url);
-                        if (parsed != null && parsed.ok()
-                                && r.server != null
-                                && r.server.equalsIgnoreCase(parsed.server)
-                                && r.user != null
-                                && r.user.equalsIgnoreCase(parsed.user)) {
-                            out.add(r);
-                            break;
-                        }
-                    } catch (Throwable ignored) {
-                    }
-                } else if (r.url != null && r.url.equalsIgnoreCase(url.trim())) {
+                if (r == null || r.url == null) continue;
+                if (r.url.equalsIgnoreCase(url)) {
                     out.add(r);
                     break;
                 }
