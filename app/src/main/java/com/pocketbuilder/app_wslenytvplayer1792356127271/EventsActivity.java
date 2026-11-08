@@ -190,7 +190,7 @@ public final class EventsActivity extends Activity {
         }
         String chosenUrl = null;
         for (int i = 0; i < urls.size(); i++) {
-            if (EventLists.displayName(urls.get(i)).equals(selectedServer) {
+            if (EventLists.displayName(urls.get(i)).equals(selectedServer)) {
                 chosenUrl = urls.get(i);
                 break;
             }
