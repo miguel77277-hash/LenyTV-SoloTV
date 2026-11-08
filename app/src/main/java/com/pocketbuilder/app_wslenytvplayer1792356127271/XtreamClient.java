@@ -53,7 +53,7 @@ public final class XtreamClient {
      * Tope de series por lista. Una cuenta grande puede tener miles; con las
      * primeras 600 la app abre rápida y el catálogo guardado no se dispara.
      */
-    public static final int MAX_SERIES = 600;
+    public static final int MAX_SERIES = 1500;
 
     /**
      * Extensiones de vídeo que el reproductor del módulo puede intentar abrir.

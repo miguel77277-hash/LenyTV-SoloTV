@@ -1222,14 +1222,27 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         }));
         controls.addView(aspectButton, skinParams(0f));
 
-        prevButton = skinButton(PlayerIcons.rewind(this, Ui.TEXT), 46f, "Canal anterior");
-        prevButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                stepChannel(-1);
-            }
-        }));
-        controls.addView(prevButton, skinParams(6f));
+        if (moviesAudio) {
+            // Películas: retroceder / adelantar 10 s (no cambia de canal)
+            prevButton = skinButton(PlayerIcons.rewind(this, Ui.TEXT), 46f, "Retroceder 10 segundos");
+            prevButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    seekMoviesByMs(-10000L);
+                    scheduleHide();
+                }
+            });
+            controls.addView(prevButton, skinParams(6f));
+        } else {
+            prevButton = skinButton(PlayerIcons.rewind(this, Ui.TEXT), 46f, "Canal anterior");
+            prevButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    stepChannel(-1);
+                }
+            }));
+            controls.addView(prevButton, skinParams(6f));
+        }
 
         playButton = skinButton(PlayerIcons.play(this, 0xFFFFFFFF), 54f, "Reproducir o pausar");
         playButton.setBackground(Ui.buttonBg(this, 0xFF00A8E8, 0xFF00D4FF, 0x6600E5FF, 12f));
@@ -1242,33 +1255,65 @@ public final class PlayerActivity extends Activity implements SurfaceHolder.Call
         });
         controls.addView(playButton, skinParams(10f));
 
-        nextButton = skinButton(PlayerIcons.forward(this, Ui.TEXT), 46f, "Canal siguiente");
-        nextButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                stepChannel(1);
-            }
-        }));
-        controls.addView(nextButton, skinParams(10f));
+        if (moviesAudio) {
+            nextButton = skinButton(PlayerIcons.forward(this, Ui.TEXT), 46f, "Adelantar 10 segundos");
+            nextButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    seekMoviesByMs(10000L);
+                    scheduleHide();
+                }
+            });
+            controls.addView(nextButton, skinParams(10f));
+            // Audio solo películas
+            View audioSkin = skinButton(PlayerIcons.subtitles(this, Ui.TEXT), 46f, "Elegir audio");
+            audioSkin.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showMoviesAudioPicker();
+                    scheduleHide();
+                }
+            });
+            controls.addView(audioSkin, skinParams(6f));
+            // Calidad también disponible
+            View subtitlesButton = skinButton(PlayerIcons.subtitles(this, Ui.TEXT), 46f,
+                    "Elegir la calidad de vídeo");
+            subtitlesButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    openQualityPanel();
+                }
+            }));
+            controls.addView(subtitlesButton, skinParams(6f));
+        } else {
+            nextButton = skinButton(PlayerIcons.forward(this, Ui.TEXT), 46f, "Canal siguiente");
+            nextButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    stepChannel(1);
+                }
+            }));
+            controls.addView(nextButton, skinParams(10f));
 
-        drawerButton = skinButton(Icons.list(this, Ui.TEXT), 46f, "Lista de canales");
-        drawerButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openDrawer();
-            }
-        }));
-        controls.addView(drawerButton, skinParams(6f));
+            drawerButton = skinButton(Icons.list(this, Ui.TEXT), 46f, "Lista de canales");
+            drawerButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    openDrawer();
+                }
+            }));
+            controls.addView(drawerButton, skinParams(6f));
 
-        View subtitlesButton = skinButton(PlayerIcons.subtitles(this, Ui.TEXT), 46f,
-                "Elegir la calidad de vídeo");
-        subtitlesButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openQualityPanel();
-            }
-        }));
-        controls.addView(subtitlesButton, skinParams(6f));
+            View subtitlesButton = skinButton(PlayerIcons.subtitles(this, Ui.TEXT), 46f,
+                    "Elegir la calidad de vídeo");
+            subtitlesButton.setOnClickListener(new HideThenRun(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    openQualityPanel();
+                }
+            }));
+            controls.addView(subtitlesButton, skinParams(6f));
+        }
 
         controls.setFocusable(false);
         controls.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);

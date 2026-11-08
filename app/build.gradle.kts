@@ -10,8 +10,8 @@ android {
         applicationId = "com.pocketbuilder.app_wslenytvplayer1792356127271"
         minSdk = 29
         targetSdk = 34
-        versionCode = 120
-        versionName = "1.120-1play-m3u"
+        versionCode = 121
+        versionName = "1.121-auto-seek-audio"
     }
 
     buildTypes {

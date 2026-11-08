@@ -156,17 +156,29 @@ public final class MoviesActivity extends Activity {
                 public void run() {
                     try {
                         CatalogStore.seedDefaultVod(MoviesActivity.this);
-                        ArrayList<CatalogStore.Repo> defs = CatalogStore.defaultVodRepos(MoviesActivity.this);
+                        final ArrayList<CatalogStore.Repo> defs =
+                                CatalogStore.defaultVodRepos(MoviesActivity.this);
+                        // Carga automática en cadena: una lista tras otra
                         for (int i = 0; i < defs.size(); i++) {
-                            CatalogStore.Repo r = defs.get(i);
+                            final CatalogStore.Repo r = defs.get(i);
                             if (r == null) continue;
-                            // 1play y similares: forzar descarga M3U si van a 0
-                            if (!r.hasItems() || r.stale() || r.itemCount <= 0) {
-                                refreshRepo(r, true);
-                            }
+                            final int delay = i * 1200;
+                            main.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (!r.hasItems() || r.itemCount <= 0 || r.stale()) {
+                                        refreshRepo(r, false);
+                                    }
+                                }
+                            }, delay);
                         }
-                        reloadLocal();
-                        rebuildListChips();
+                        main.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                reloadLocal();
+                                rebuildListChips();
+                            }
+                        }, defs.size() * 1200L + 800L);
                     } catch (Throwable ignored) {
                     }
                 }
