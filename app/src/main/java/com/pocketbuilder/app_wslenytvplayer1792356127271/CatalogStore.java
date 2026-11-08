@@ -403,14 +403,14 @@ final class CatalogStore {
     private static final String[] DEFAULT_VOD_URLS = new String[]{
             "https://raw.githubusercontent.com/nestor223/estrenos2026_m3u/refs/heads/main/estrenos2026_m3u",
             "https://raw.githubusercontent.com/nestor223/series_m3u/refs/heads/main/series_m3u",
-            "http://www.1play.cool:25461/get.php?username=Antonio30&password=bdb3a18bc6&type=m3u_plus&output=ts",
-            "http://cdn-abc.xyz:2086/get.php?username=CanalesVen&password=NF8sq6nCEq&type=m3u_plus&output=ts"
+            "http://cdn-abc.xyz:2086/get.php?username=CanalesVen&password=NF8sq6nCEq&type=m3u_plus&output=ts",
+            "http://www.1play.cool:25461/get.php?username=Antonio30&password=bdb3a18bc6&type=m3u_plus&output=ts"
     };
     private static final String[] DEFAULT_VOD_NAMES = new String[]{
-            "Estrenos 2026",
-            "Series 2026",
-            "1Playcool",
-            "CanalesVen"
+            "Estrenos",
+            "Series",
+            "Servidor 1",
+            "Servidor 2"
     };
 
     /**
@@ -468,7 +468,7 @@ final class CatalogStore {
                 } else {
                     found.enabled = true;
                     found.url = url;
-                    found.name = name;
+                    found.name = name; // actualizar etiqueta de pestaña
                     found.kind = KIND_JSON;
                     found.server = "";
                     found.user = "";

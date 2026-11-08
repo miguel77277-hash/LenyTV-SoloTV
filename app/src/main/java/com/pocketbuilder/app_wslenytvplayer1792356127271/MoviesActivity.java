@@ -1346,7 +1346,7 @@ public final class MoviesActivity extends Activity {
         listChips.removeAllViews();
         // Orden fijo: Estrenos → Series → 1Playcool → CanalesVen → resto
         final String[] preferred = new String[]{
-                "Estrenos 2026", "Series 2026", "1Playcool", "CanalesVen"
+                "Estrenos", "Series", "Servidor 1", "Servidor 2"
         };
         ArrayList<CatalogStore.Repo> ordered = new ArrayList<CatalogStore.Repo>();
         try {
@@ -1356,7 +1356,17 @@ public final class MoviesActivity extends Activity {
                 for (int i = 0; i < saved.size(); i++) {
                     CatalogStore.Repo r = saved.get(i);
                     if (r == null || !r.enabled || r.needsUrl()) continue;
-                    if (preferred[p].equalsIgnoreCase(r.title())) {
+                    String title = r.title();
+                    if (preferred[p].equalsIgnoreCase(title)
+                            || ("Estrenos".equals(preferred[p]) && title != null
+                                && title.toLowerCase(java.util.Locale.US).indexOf("estreno") >= 0)
+                            || ("Series".equals(preferred[p]) && title != null
+                                && title.toLowerCase(java.util.Locale.US).startsWith("series"))
+                            || ("Servidor 1".equals(preferred[p]) && title != null
+                                && (title.indexOf("CanalesVen") >= 0 || title.indexOf("cdn-abc") >= 0))
+                            || ("Servidor 2".equals(preferred[p]) && title != null
+                                && (title.indexOf("1play") >= 0 || title.indexOf("1Play") >= 0
+                                    || title.indexOf("Playcool") >= 0))) {
                         ordered.add(r);
                         used[i] = true;
                         break;

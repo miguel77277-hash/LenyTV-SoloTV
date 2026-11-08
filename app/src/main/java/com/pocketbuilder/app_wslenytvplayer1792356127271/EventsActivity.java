@@ -56,6 +56,7 @@ public final class EventsActivity extends Activity {
         String logo = "";
         String server = "";
         String group = "";
+        String listUrl = "";
     }
 
     private final ArrayList<EventItem> all = new ArrayList<EventItem>();

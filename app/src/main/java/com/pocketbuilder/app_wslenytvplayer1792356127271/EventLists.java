@@ -89,22 +89,36 @@ final class EventLists {
 
     /** Nombre fijo por lista para no mezclar hosts iguales (GitHub). */
     static String displayName(String url) {
-        if (url == null) return "Eventos";
+        if (url == null) return "Agenda";
         String u = url.toLowerCase(java.util.Locale.US);
+        // Orden fijo de las 3 listas por defecto
         if (u.indexOf("workers.dev") >= 0 || u.indexOf("wild-base") >= 0) {
-            return "Roxy eventos";
+            return "Agenda 1";
         }
-        if (u.indexOf("thetvapp") >= 0) return "Thetvapp eventos";
-        if (u.indexOf("fctv33") >= 0) return "Fctv33 eventos";
+        if (u.indexOf("thetvapp") >= 0) return "Agenda 2";
+        if (u.indexOf("fctv33") >= 0) return "Agenda 3";
+        // Listas añadidas por el usuario: Agenda 4, 5…
+        ArrayList<String> all = null;
         try {
-            String host = url;
-            int scheme = host.indexOf("://");
-            if (scheme >= 0) host = host.substring(scheme + 3);
-            int slash = host.indexOf('/');
-            if (slash >= 0) host = host.substring(0, slash);
-            return host.length() == 0 ? "Eventos" : host;
-        } catch (Throwable t) {
-            return "Eventos";
+            // sin Context aquí: nombre genérico corto
+        } catch (Throwable ignored) {
         }
+        return "Agenda";
+    }
+
+    static String displayName(String url, java.util.List<String> allUrls) {
+        if (url == null) return "Agenda";
+        String base = displayName(url);
+        if (!"Agenda".equals(base)) return base;
+        if (allUrls == null) return "Agenda";
+        int idx = 0;
+        for (int i = 0; i < allUrls.size(); i++) {
+            if (url.equals(allUrls.get(i))) {
+                idx = i + 1;
+                break;
+            }
+        }
+        if (idx <= 0) idx = allUrls.size() + 1;
+        return "Agenda " + idx;
     }
 }
