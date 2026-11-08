@@ -121,7 +121,10 @@ public final class MoviesActivity extends Activity {
     /** Panel de ajustes de la pantalla (listas, enlaces y ajustes del módulo). */
     private Dialog toolsDialog;
 
-    private String selectedKind = MovieItem.KIND_MOVIE;
+    private String selectedKind = ""; // películas + series (solo VOD)
+    private String selectedRepo = "";
+    private LinearLayout listChips;
+
     private String selectedGenre = "";
     private String searchText = "";
     private boolean loading = false;
@@ -287,6 +290,16 @@ public final class MoviesActivity extends Activity {
                     }
                 }));
         column.addView(top, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Pestañas por lista / servidor (elegir fuente VOD)
+        HorizontalScrollView listScroll = new HorizontalScrollView(this);
+        listScroll.setHorizontalScrollBarEnabled(false);
+        listScroll.setPadding(dpi(12), dpi(4), dpi(12), dpi(6));
+        listChips = new LinearLayout(this);
+        listChips.setOrientation(LinearLayout.HORIZONTAL);
+        listScroll.addView(listChips);
+        column.addView(listScroll, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // Campo de búsqueda oculto (lo usa el panel de búsqueda)
@@ -1246,10 +1259,27 @@ public final class MoviesActivity extends Activity {
     }
 
     private void applyFilter() {
+        rebuildListChips();
+        // Si no hay lista elegida, la primera disponible
+        if (selectedRepo.length() == 0) {
+            for (int i = 0; i < allItems.size(); i++) {
+                if (allItems.get(i) != null && allItems.get(i).repoName != null
+                        && allItems.get(i).repoName.length() > 0) {
+                    selectedRepo = allItems.get(i).repoName;
+                    break;
+                }
+            }
+        }
         shownItems.clear();
         for (int i = 0; i < allItems.size(); i++) {
             MovieItem item = allItems.get(i);
             if (item == null) continue;
+            // Solo VOD ya viene filtrado al cargar; aquí: lista elegida + búsqueda
+            if (selectedRepo.length() > 0) {
+                String rn = item.repoName == null ? "" : item.repoName;
+                if (!selectedRepo.equals(rn)) continue;
+            }
+            // selectedKind vacío = películas y series; si se fuerza, respeta
             if (MovieItem.KIND_MOVIE.equals(selectedKind) && item.isSeries()) continue;
             if (MovieItem.KIND_SERIES.equals(selectedKind) && !item.isSeries()) continue;
             if (selectedGenre.length() > 0) {
@@ -1270,6 +1300,47 @@ public final class MoviesActivity extends Activity {
         rebuildSidebarCategories();
         updateStatus();
     }
+
+    private void rebuildListChips() {
+        if (listChips == null) return;
+        listChips.removeAllViews();
+        java.util.LinkedHashMap<String, Integer> repos =
+                new java.util.LinkedHashMap<String, Integer>();
+        for (int i = 0; i < allItems.size(); i++) {
+            MovieItem item = allItems.get(i);
+            if (item == null) continue;
+            String rn = item.repoName == null || item.repoName.length() == 0
+                    ? "Lista" : item.repoName;
+            Integer c = repos.get(rn);
+            repos.put(rn, c == null ? 1 : c.intValue() + 1);
+        }
+        if (repos.isEmpty()) return;
+        boolean valid = selectedRepo.length() > 0 && repos.containsKey(selectedRepo);
+        if (!valid) selectedRepo = repos.keySet().iterator().next();
+        for (java.util.Map.Entry<String, Integer> e : repos.entrySet()) {
+            final String key = e.getKey();
+            boolean on = key.equals(selectedRepo);
+            String label = key;
+            if (label.length() > 26) label = label.substring(0, 24) + "…";
+            label = label + " (" + e.getValue() + ")";
+            TextView chip = Ui.text(this, label, 11f, on ? 0xFF001018 : 0xFFE8EEF8, true);
+            chip.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
+            chip.setBackground(rounded(on ? CYAN : 0xFF1A2230, 16f));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.rightMargin = dpi(8);
+            chip.setLayoutParams(lp);
+            chip.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    selectedRepo = key;
+                    applyFilter();
+                }
+            });
+            listChips.addView(chip);
+        }
+    }
+
 
     private void rebuildCatalogRows() {
         if (rowsContainer == null) return;
