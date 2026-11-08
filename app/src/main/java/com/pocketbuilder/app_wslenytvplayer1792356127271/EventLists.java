@@ -10,7 +10,7 @@ final class EventLists {
 
     private static final String PREFS = "leny_events_lists";
     private static final String KEY = "urls";
-    private static final String SEEDED = "seeded_v1";
+    private static final String SEEDED = "seeded_v2_named";
 
     static final String[] DEFAULTS = new String[]{
             "https://wild-base-c86a.miguel77277.workers.dev",
@@ -84,18 +84,27 @@ final class EventLists {
     }
 
     static String serverLabel(String url) {
-        if (url == null) return "Servidor";
+        return displayName(url);
+    }
+
+    /** Nombre fijo por lista para no mezclar hosts iguales (GitHub). */
+    static String displayName(String url) {
+        if (url == null) return "Eventos";
+        String u = url.toLowerCase(java.util.Locale.US);
+        if (u.indexOf("workers.dev") >= 0 || u.indexOf("wild-base") >= 0) {
+            return "Roxy eventos";
+        }
+        if (u.indexOf("thetvapp") >= 0) return "Thetvapp eventos";
+        if (u.indexOf("fctv33") >= 0) return "Fctv33 eventos";
         try {
-            String u = url;
-            int scheme = u.indexOf("://");
-            if (scheme >= 0) u = u.substring(scheme + 3);
-            int slash = u.indexOf('/');
-            if (slash >= 0) u = u.substring(0, slash);
-            int q = u.indexOf('?');
-            if (q >= 0) u = u.substring(0, q);
-            return u.length() == 0 ? "Servidor" : u;
+            String host = url;
+            int scheme = host.indexOf("://");
+            if (scheme >= 0) host = host.substring(scheme + 3);
+            int slash = host.indexOf('/');
+            if (slash >= 0) host = host.substring(0, slash);
+            return host.length() == 0 ? "Eventos" : host;
         } catch (Throwable t) {
-            return "Servidor";
+            return "Eventos";
         }
     }
 }

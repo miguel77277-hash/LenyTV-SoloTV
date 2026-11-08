@@ -178,36 +178,59 @@ public final class EventsActivity extends Activity {
     }
 
     private void reload() {
+        final ArrayList<String> urls = EventLists.urls(this);
+        if (urls.isEmpty()) {
+            all.clear();
+            rebuildRows();
+            return;
+        }
+        // Solo la lista de la pestaña elegida (evita mezclar y reduce lag)
+        if (selectedServer.length() == 0) {
+            selectedServer = EventLists.displayName(urls.get(0));
+        }
+        String chosenUrl = null;
+        for (int i = 0; i < urls.size(); i++) {
+            if (EventLists.displayName(urls.get(i)).equals(selectedServer) {
+                chosenUrl = urls.get(i);
+                break;
+            }
+        }
+        if (chosenUrl == null) {
+            chosenUrl = urls.get(0);
+            selectedServer = EventLists.displayName(chosenUrl);
+        }
         loading = true;
         updateLoading();
-        final ArrayList<String> urls = EventLists.urls(this);
+        final String listUrl = chosenUrl;
+        final String serverName = EventLists.displayName(listUrl);
         pool.execute(new Runnable() {
             @Override
             public void run() {
                 final ArrayList<EventItem> loaded = new ArrayList<EventItem>();
-                for (int i = 0; i < urls.size(); i++) {
-                    String listUrl = urls.get(i);
-                    String server = EventLists.serverLabel(listUrl);
-                    try {
-                        String text = Net.getText(listUrl, null);
-                        if (text == null || text.length() < 8) continue;
+                try {
+                    String text = Net.getText(listUrl, null);
+                    if (text != null && text.length() >= 8) {
                         M3uParser.Result parsed = M3uParser.parse(text, listUrl);
-                        if (parsed == null || parsed.channels == null) continue;
-                        for (int c = 0; c < parsed.channels.size(); c++) {
-                            Channel channel = parsed.channels.get(c);
-                            if (channel == null || channel.url == null || channel.url.length() == 0) {
-                                continue;
+                        if (parsed != null && parsed.channels != null) {
+                            // Últimos del archivo primero
+                            for (int c = parsed.channels.size() - 1; c >= 0; c--) {
+                                Channel channel = parsed.channels.get(c);
+                                if (channel == null || channel.url == null
+                                        || channel.url.length() == 0) {
+                                    continue;
+                                }
+                                EventItem item = new EventItem();
+                                item.name = channel.name == null ? "Evento" : channel.name;
+                                item.url = channel.url;
+                                item.logo = channel.logo == null ? "" : channel.logo;
+                                item.server = serverName;
+                                item.listUrl = listUrl;
+                                item.group = channel.category == null ? "" : channel.category;
+                                loaded.add(item);
                             }
-                            EventItem item = new EventItem();
-                            item.name = channel.name == null ? "Evento" : channel.name;
-                            item.url = channel.url;
-                            item.logo = channel.logo == null ? "" : channel.logo;
-                            item.server = server;
-                            item.group = channel.category == null ? "" : channel.category;
-                            loaded.add(item);
                         }
-                    } catch (Throwable ignored) {
                     }
+                } catch (Throwable ignored) {
                 }
                 main.post(new Runnable() {
                     @Override
@@ -285,23 +308,17 @@ public final class EventsActivity extends Activity {
     private void rebuildServerChips() {
         if (serverChips == null) return;
         serverChips.removeAllViews();
-        LinkedHashMap<String, Integer> servers = new LinkedHashMap<String, Integer>();
-        for (int i = 0; i < all.size(); i++) {
-            String s = all.get(i).server;
-            if (s == null || s.length() == 0) s = "Otros";
-            Integer c = servers.get(s);
-            servers.put(s, c == null ? 1 : c.intValue() + 1);
+        ArrayList<String> urls = EventLists.urls(this);
+        if (urls.isEmpty()) return;
+        if (selectedServer.length() == 0) {
+            selectedServer = EventLists.displayName(urls.get(0));
         }
-        // Solo pestañas individuales (sin "Todos")
-        boolean stillValid = selectedServer.length() > 0 && servers.containsKey(selectedServer);
-        if (!stillValid && !servers.isEmpty()) {
-            selectedServer = servers.keySet().iterator().next();
-        }
-        for (Map.Entry<String, Integer> e : servers.entrySet()) {
-            String label = e.getKey();
-            if (label.length() > 28) label = label.substring(0, 26) + "…";
-            label = label + " (" + e.getValue() + ")";
-            serverChips.addView(serverChip(label, e.getKey(), e.getKey().equals(selectedServer)));
+        for (int i = 0; i < urls.size(); i++) {
+            String u = urls.get(i);
+            String name = EventLists.displayName(u);
+            int count = name.equals(selectedServer) ? all.size() : 0;
+            String label = name + (count > 0 ? " (" + count + ")" : "");
+            serverChips.addView(serverChip(label, name, name.equals(selectedServer)));
         }
     }
 
@@ -317,7 +334,7 @@ public final class EventsActivity extends Activity {
             @Override
             public void onClick(View v) {
                 selectedServer = serverKey == null ? "" : serverKey;
-                rebuildRows();
+                reload();
             }
         });
         return chip;

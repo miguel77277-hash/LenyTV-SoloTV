@@ -96,11 +96,29 @@ final class CatalogLoader {
         if (repo == null) {
             throw new CatalogError("Ese repositorio no existe.");
         }
+        Loaded loaded;
         if (!repo.isXtream()) {
-            return fetch(context, repo.url);
+            loaded = fetch(context, repo.url);
+        } else {
+            XtreamClient.Loaded xtream = XtreamClient.load(context, repo.server, repo.user, repo.pass);
+            loaded = fromXtream(xtream);
         }
-        XtreamClient.Loaded xtream = XtreamClient.load(context, repo.server, repo.user, repo.pass);
-        return fromXtream(xtream);
+        // Mantener el nombre de la pestaña (no mezclar por host de GitHub)
+        if (repo.name != null && repo.name.length() > 0 && loaded != null) {
+            loaded.name = repo.name;
+            if (loaded.items != null) {
+                for (int i = 0; i < loaded.items.size(); i++) {
+                    if (loaded.items.get(i) != null) {
+                        loaded.items.get(i).repoName = repo.name;
+                    }
+                }
+                try {
+                    loaded.itemsJson = serialize(loaded.items);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        return loaded;
     }
 
     /**
@@ -171,10 +189,14 @@ final class CatalogLoader {
             MovieItem item = report.items.get(i);
             if (item != null) item.repoName = loaded.name;
         }
-        loaded.items.addAll(report.items);
-        loaded.count = report.items.size();
+        // Últimos del M3U primero (suelen ser los recién agregados)
+        for (int i = report.items.size() - 1; i >= 0; i--) {
+            MovieItem it = report.items.get(i);
+            if (it != null) loaded.items.add(it);
+        }
+        loaded.count = loaded.items.size();
         loaded.note = report.note();
-        loaded.itemsJson = itemsToJson(report.items);
+        loaded.itemsJson = itemsToJson(loaded.items);
         return loaded;
     }
 

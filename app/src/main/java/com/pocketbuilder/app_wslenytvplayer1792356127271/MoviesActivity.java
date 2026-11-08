@@ -150,35 +150,15 @@ public final class MoviesActivity extends Activity {
             CatalogStore.seedPresets(this);
             CatalogStore.seedDefaultVod(this);
             buildUi();
-            // Forzar descarga de las listas VOD por defecto si aún no tienen catálogo
+            // Solo pestañas; la lista elegida se descarga al tocarla (menos lag)
             main.post(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         CatalogStore.seedDefaultVod(MoviesActivity.this);
-                        final ArrayList<CatalogStore.Repo> defs =
-                                CatalogStore.defaultVodRepos(MoviesActivity.this);
-                        // Carga automática en cadena: una lista tras otra
-                        for (int i = 0; i < defs.size(); i++) {
-                            final CatalogStore.Repo r = defs.get(i);
-                            if (r == null) continue;
-                            final int delay = i * 1200;
-                            main.postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (!r.hasItems() || r.itemCount <= 0 || r.stale()) {
-                                        refreshRepo(r, false);
-                                    }
-                                }
-                            }, delay);
-                        }
-                        main.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                reloadLocal();
-                                rebuildListChips();
-                            }
-                        }, defs.size() * 1200L + 800L);
+                        rebuildListChips();
+                        // Cargar solo la primera pestaña (Estrenos 2026)
+                        loadSelectedRepoOnly(true);
                     } catch (Throwable ignored) {
                     }
                 }
@@ -1310,23 +1290,12 @@ public final class MoviesActivity extends Activity {
             items.addAll(CatalogLoader.fromRepo(repo));
         }
 
-        allItems.clear();
-        allItems.addAll(items);
-        StringBuilder summary = new StringBuilder();
-        summary.append(activeRepos).append(activeRepos == 1 ? " fuente activa" : " fuentes activas");
-        if (xtreamLists > 0) {
-            summary.append(" · ").append(xtreamLists)
-                    .append(xtreamLists == 1 ? " lista Xtream" : " listas Xtream");
-        }
-        if (demoShown) summary.append(" · demostración visible");
-        if (waiting > 0) {
-            summary.append(" · ").append(waiting)
-                    .append(waiting == 1 ? " proveedor sin dirección" : " proveedores sin dirección");
-        }
-        summaryText = summary.toString();
+        // No mezclar listas en memoria: solo la pestaña activa
+        summaryText = activeRepos + (activeRepos == 1 ? " fuente" : " fuentes")
+                + (xtreamLists > 0 ? " · " + xtreamLists + " Xtream" : "");
         if (summaryView != null) summaryView.setText(summaryText);
         rebuildChips();
-        applyFilter();
+        loadSelectedRepoOnly(false);
     }
 
     private void applyFilter() {
@@ -1375,38 +1344,60 @@ public final class MoviesActivity extends Activity {
     private void rebuildListChips() {
         if (listChips == null) return;
         listChips.removeAllViews();
-        java.util.LinkedHashMap<String, Integer> repos =
-                new java.util.LinkedHashMap<String, Integer>();
-        // Contar títulos por fuente
-        for (int i = 0; i < allItems.size(); i++) {
-            MovieItem item = allItems.get(i);
-            if (item == null) continue;
-            String rn = item.repoName == null || item.repoName.length() == 0
-                    ? "Lista" : item.repoName;
-            Integer c = repos.get(rn);
-            repos.put(rn, c == null ? 1 : c.intValue() + 1);
-        }
-        // Añadir listas guardadas aunque aún no tengan títulos (pestaña visible)
+        // Orden fijo: Estrenos → Series → 1Playcool → CanalesVen → resto
+        final String[] preferred = new String[]{
+                "Estrenos 2026", "Series 2026", "1Playcool", "CanalesVen"
+        };
+        ArrayList<CatalogStore.Repo> ordered = new ArrayList<CatalogStore.Repo>();
         try {
             ArrayList<CatalogStore.Repo> saved = CatalogStore.list(this);
+            boolean[] used = new boolean[saved.size()];
+            for (int p = 0; p < preferred.length; p++) {
+                for (int i = 0; i < saved.size(); i++) {
+                    CatalogStore.Repo r = saved.get(i);
+                    if (r == null || !r.enabled || r.needsUrl()) continue;
+                    if (preferred[p].equalsIgnoreCase(r.title())) {
+                        ordered.add(r);
+                        used[i] = true;
+                        break;
+                    }
+                }
+            }
             for (int i = 0; i < saved.size(); i++) {
+                if (used[i]) continue;
                 CatalogStore.Repo r = saved.get(i);
                 if (r == null || !r.enabled || r.needsUrl()) continue;
-                String title = r.title();
-                if (title == null || title.length() == 0) title = "Lista";
-                if (!repos.containsKey(title)) repos.put(title, 0);
+                // Ocultar presets vacíos sin URL real de VOD
+                if (r.preset && r.itemCount == 0 && (r.url == null || r.url.length() < 8)) {
+                    continue;
+                }
+                ordered.add(r);
             }
         } catch (Throwable ignored) {
         }
-        if (repos.isEmpty()) return;
-        boolean valid = selectedRepo.length() > 0 && repos.containsKey(selectedRepo);
-        if (!valid) selectedRepo = repos.keySet().iterator().next();
-        for (java.util.Map.Entry<String, Integer> e : repos.entrySet()) {
-            final String key = e.getKey();
+        if (ordered.isEmpty()) return;
+        boolean valid = false;
+        for (int i = 0; i < ordered.size(); i++) {
+            if (ordered.get(i).title().equals(selectedRepo)) {
+                valid = true;
+                break;
+            }
+        }
+        if (!valid) selectedRepo = ordered.get(0).title();
+        for (int i = 0; i < ordered.size(); i++) {
+            final CatalogStore.Repo repo = ordered.get(i);
+            final String key = repo.title();
             boolean on = key.equals(selectedRepo);
+            int count = 0;
+            for (int j = 0; j < allItems.size(); j++) {
+                if (allItems.get(j) != null && key.equals(allItems.get(j).repoName)) {
+                    count++;
+                }
+            }
+            if (count == 0) count = repo.itemCount;
             String label = key;
-            if (label.length() > 22) label = label.substring(0, 20) + "…";
-            label = label + " (" + e.getValue() + ")";
+            if (label.length() > 18) label = label.substring(0, 16) + "…";
+            label = label + " (" + count + ")";
             TextView chip = Ui.text(this, label, 11f, on ? 0xFF001018 : 0xFFE8EEF8, true);
             chip.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
             chip.setBackground(rounded(on ? CYAN : 0xFF1A2230, 16f));
@@ -1418,12 +1409,59 @@ public final class MoviesActivity extends Activity {
                 @Override
                 public void onClick(View v) {
                     selectedRepo = key;
-                    applyFilter();
+                    loadSelectedRepoOnly(false);
                 }
             });
             listChips.addView(chip);
         }
     }
+
+    /** Carga en memoria solo la lista de la pestaña activa. */
+    private void loadSelectedRepoOnly(boolean forceDownload) {
+        CatalogStore.Repo target = null;
+        try {
+            ArrayList<CatalogStore.Repo> saved = CatalogStore.list(this);
+            for (int i = 0; i < saved.size(); i++) {
+                CatalogStore.Repo r = saved.get(i);
+                if (r != null && r.enabled && selectedRepo.equals(r.title())) {
+                    target = r;
+                    break;
+                }
+            }
+            if (target == null && !saved.isEmpty()) {
+                for (int i = 0; i < saved.size(); i++) {
+                    if (saved.get(i) != null && saved.get(i).enabled) {
+                        target = saved.get(i);
+                        selectedRepo = target.title();
+                        break;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        if (target == null) {
+            allItems.clear();
+            applyFilter();
+            return;
+        }
+        // Mostrar caché local de ESA lista solamente
+        allItems.clear();
+        try {
+            allItems.addAll(CatalogLoader.fromRepo(target));
+            // Asegurar repoName correcto
+            for (int i = 0; i < allItems.size(); i++) {
+                if (allItems.get(i) != null) {
+                    allItems.get(i).repoName = target.title();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        applyFilter();
+        if (forceDownload || !target.hasItems() || target.itemCount <= 0 || target.stale()) {
+            refreshRepo(target, false);
+        }
+    }
+
 
 
     private void rebuildCatalogRows() {
