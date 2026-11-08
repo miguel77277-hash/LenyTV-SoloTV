@@ -835,9 +835,9 @@ public final class MoviesActivity extends Activity {
                 line.setOrientation(LinearLayout.HORIZONTAL);
                 line.setGravity(Gravity.CENTER_VERTICAL);
                 line.setPadding(dpi(4), dpi(6), dpi(4), dpi(6));
-                String title = repo.title();
-                if (title.length() > 28) title = title.substring(0, 26) + "…";
-                TextView name = Ui.text(this, title + " · " + repo.itemCount, 11f, 0xFFE8EEF8, false);
+                String repoTitle = repo.title();
+                if (repoTitle.length() > 28) repoTitle = repoTitle.substring(0, 26) + "…";
+                TextView name = Ui.text(this, repoTitle + " · " + repo.itemCount, 11f, 0xFFE8EEF8, false);
                 line.addView(name, new LinearLayout.LayoutParams(0,
                         LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
                 TextView del = Ui.text(this, "Quitar", 11f, 0xFFFF8899, true);
