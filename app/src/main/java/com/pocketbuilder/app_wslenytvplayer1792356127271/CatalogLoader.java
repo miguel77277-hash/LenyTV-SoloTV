@@ -44,10 +44,10 @@ final class CatalogLoader {
      * series, así que el tope se ha subido: por debajo de esto el catálogo se
      * guarda y se abre sin problemas en el teléfono.
      */
-    static final int MAX_ITEMS = 4000;
+    static final int MAX_ITEMS = 15000;
 
     /** Tope de descarga de una fuente (las listas M3U pueden ser muy grandes). */
-    private static final int MAX_DOWNLOAD = 24 * 1024 * 1024;
+    private static final int MAX_DOWNLOAD = 48 * 1024 * 1024;
 
     /** Error con el texto que se le enseña al usuario. */
     static final class CatalogError extends Exception {

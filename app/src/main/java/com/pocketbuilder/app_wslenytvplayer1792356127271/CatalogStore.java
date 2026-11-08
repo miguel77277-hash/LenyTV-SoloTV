@@ -398,11 +398,15 @@ final class CatalogStore {
 
     private static final String[] DEFAULT_VOD_URLS = new String[]{
             "http://cdn-abc.xyz:2086/get.php?username=CanalesVen&password=NF8sq6nCEq&type=m3u_plus&output=ts",
-            "http://www.1play.cool:25461/get.php?username=Antonio30&password=bdb3a18bc6&type=m3u_plus&output=ts"
+            "http://www.1play.cool:25461/get.php?username=Antonio30&password=bdb3a18bc6&type=m3u_plus&output=ts",
+            "https://raw.githubusercontent.com/nestor223/estrenos2026_m3u/refs/heads/main/estrenos2026_m3u",
+            "https://raw.githubusercontent.com/nestor223/series_m3u/refs/heads/main/series_m3u"
     };
     private static final String[] DEFAULT_VOD_NAMES = new String[]{
             "CanalesVen VOD",
-            "1play VOD"
+            "1play VOD",
+            "Estrenos 2026",
+            "Series"
     };
 
     /**

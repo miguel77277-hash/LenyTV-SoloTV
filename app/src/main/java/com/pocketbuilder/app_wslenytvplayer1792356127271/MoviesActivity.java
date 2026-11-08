@@ -821,6 +821,44 @@ public final class MoviesActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // 2) Listas Xtream, Enlaces, actualizar y ajustes del módulo.
+        // --- Editar fuentes (ver / quitar) ---
+        TextView fuentesLabel = Ui.text(this, "FUENTES GUARDADAS", 10f, RogStyle.TEXT_DIM, true);
+        fuentesLabel.setLetterSpacing(0.1f);
+        fuentesLabel.setPadding(dpi(2), dpi(14), dpi(2), dpi(6));
+        panel.addView(fuentesLabel);
+        try {
+            ArrayList<CatalogStore.Repo> saved = CatalogStore.list(this);
+            for (int i = 0; i < saved.size(); i++) {
+                final CatalogStore.Repo repo = saved.get(i);
+                if (repo == null || repo.needsUrl()) continue;
+                LinearLayout line = new LinearLayout(this);
+                line.setOrientation(LinearLayout.HORIZONTAL);
+                line.setGravity(Gravity.CENTER_VERTICAL);
+                line.setPadding(dpi(4), dpi(6), dpi(4), dpi(6));
+                String title = repo.title();
+                if (title.length() > 28) title = title.substring(0, 26) + "…";
+                TextView name = Ui.text(this, title + " · " + repo.itemCount, 11f, 0xFFE8EEF8, false);
+                line.addView(name, new LinearLayout.LayoutParams(0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                TextView del = Ui.text(this, "Quitar", 11f, 0xFFFF8899, true);
+                del.setPadding(dpi(10), dpi(6), dpi(10), dpi(6));
+                del.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        CatalogStore.remove(MoviesActivity.this, repo.id);
+                        dialog.dismiss();
+                        reloadLocal();
+                        rebuildListChips();
+                        toast("Fuente eliminada");
+                        showToolsPanel();
+                    }
+                });
+                line.addView(del);
+                panel.addView(line);
+            }
+        } catch (Throwable ignored) {
+        }
+
         TextView moreLabel = Ui.text(this, "CATÁLOGO", 10f, RogStyle.TEXT_DIM, true);
         moreLabel.setLetterSpacing(0.1f);
         moreLabel.setPadding(dpi(2), dpi(16), dpi(2), dpi(6));
@@ -1391,21 +1429,33 @@ public final class MoviesActivity extends Activity {
     private void rebuildCatalogRows() {
         if (rowsContainer == null) return;
         rowsContainer.removeAllViews();
-        featured = shownItems.isEmpty() ? null : shownItems.get(0);
+        // Destacadas: priorizar estrenos / años recientes
+        ArrayList<MovieItem> ordered = new ArrayList<MovieItem>(shownItems);
+        java.util.Collections.sort(ordered, new java.util.Comparator<MovieItem>() {
+            @Override
+            public int compare(MovieItem a, MovieItem b) {
+                int pa = premiereScore(a);
+                int pb = premiereScore(b);
+                if (pa != pb) return pb - pa;
+                int ya = yearNum(a);
+                int yb = yearNum(b);
+                if (ya != yb) return yb - ya;
+                return 0;
+            }
+        });
+        featured = ordered.isEmpty() ? null : ordered.get(0);
         updateHero();
-        if (shownItems.isEmpty()) return;
+        if (ordered.isEmpty()) return;
 
-        // Destacadas: primeros títulos
-        int destCount = Math.min(18, shownItems.size());
+        int destCount = Math.min(24, ordered.size());
         ArrayList<MovieItem> dest = new ArrayList<MovieItem>();
-        for (int i = 0; i < destCount; i++) dest.add(shownItems.get(i));
+        for (int i = 0; i < destCount; i++) dest.add(ordered.get(i));
         rowsContainer.addView(buildRow("Destacadas", dest));
 
-        // Filas por género
         java.util.LinkedHashMap<String, ArrayList<MovieItem>> byGenre =
                 new java.util.LinkedHashMap<String, ArrayList<MovieItem>>();
-        for (int i = 0; i < shownItems.size(); i++) {
-            MovieItem item = shownItems.get(i);
+        for (int i = 0; i < ordered.size(); i++) {
+            MovieItem item = ordered.get(i);
             if (item.genres == null || item.genres.isEmpty()) {
                 ArrayList<MovieItem> other = byGenre.get("Otros");
                 if (other == null) {
@@ -1426,28 +1476,85 @@ public final class MoviesActivity extends Activity {
                 if (!list.contains(item)) list.add(item);
             }
         }
+        // Estrenos primero en filas de categorías
+        ArrayList<String> genreKeys = new ArrayList<String>(byGenre.keySet());
+        java.util.Collections.sort(genreKeys, new java.util.Comparator<String>() {
+            @Override
+            public int compare(String a, String b) {
+                int pa = genrePremiereScore(a);
+                int pb = genrePremiereScore(b);
+                if (pa != pb) return pb - pa;
+                return a.compareToIgnoreCase(b);
+            }
+        });
         int rows = 0;
-        for (java.util.Map.Entry<String, ArrayList<MovieItem>> e : byGenre.entrySet()) {
-            if (rows >= 12) break;
-            ArrayList<MovieItem> list = e.getValue();
-            if (list == null || list.size() < 2) continue;
-            if (list.size() > 24) {
+        for (int k = 0; k < genreKeys.size(); k++) {
+            if (rows >= 20) break;
+            String key = genreKeys.get(k);
+            ArrayList<MovieItem> list = byGenre.get(key);
+            if (list == null || list.isEmpty()) continue;
+            // Estrenos: mostrar la fila completa (sin cortar tan agresivo)
+            boolean isPremiere = genrePremiereScore(key) > 0;
+            int maxInRow = isPremiere ? Math.min(list.size(), 80) : Math.min(list.size(), 40);
+            if (list.size() > maxInRow) {
                 ArrayList<MovieItem> cut = new ArrayList<MovieItem>();
-                for (int i = 0; i < 24; i++) cut.add(list.get(i));
+                for (int i = 0; i < maxInRow; i++) cut.add(list.get(i));
                 list = cut;
             }
-            rowsContainer.addView(buildRow(e.getKey(), list));
+            if (list.size() < 1) continue;
+            rowsContainer.addView(buildRow(key, list));
             rows++;
         }
-        // Si no hubo géneros, una sola fila con todo
-        if (rows == 0 && shownItems.size() > destCount) {
+        if (rows == 0 && ordered.size() > destCount) {
             ArrayList<MovieItem> rest = new ArrayList<MovieItem>();
-            for (int i = destCount; i < Math.min(shownItems.size(), destCount + 30); i++) {
-                rest.add(shownItems.get(i));
+            for (int i = destCount; i < Math.min(ordered.size(), destCount + 40); i++) {
+                rest.add(ordered.get(i));
             }
             if (!rest.isEmpty()) rowsContainer.addView(buildRow("Más títulos", rest));
         }
     }
+
+    private static int yearNum(MovieItem item) {
+        if (item == null || item.year == null) return 0;
+        try {
+            String y = item.year.trim();
+            if (y.length() >= 4) return Integer.parseInt(y.substring(0, 4));
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
+
+    /** Mayor = más prioritario (estrenos / año actual). */
+    private static int premiereScore(MovieItem item) {
+        if (item == null) return 0;
+        int score = 0;
+        int y = yearNum(item);
+        if (y >= 2027) score += 300;
+        else if (y >= 2026) score += 250;
+        else if (y >= 2025) score += 150;
+        else if (y >= 2024) score += 80;
+        if (item.genres != null) {
+            for (int i = 0; i < item.genres.size(); i++) {
+                score += genrePremiereScore(item.genres.get(i));
+            }
+        }
+        String t = item.title == null ? "" : item.title.toLowerCase(java.util.Locale.US);
+        if (t.indexOf("estreno") >= 0) score += 100;
+        return score;
+    }
+
+    private static int genrePremiereScore(String genre) {
+        if (genre == null) return 0;
+        String g = genre.toLowerCase(java.util.Locale.US);
+        int score = 0;
+        if (g.indexOf("estreno") >= 0) score += 500;
+        if (g.indexOf("2027") >= 0) score += 400;
+        if (g.indexOf("2026") >= 0) score += 350;
+        if (g.indexOf("2025") >= 0) score += 200;
+        if (g.indexOf("nuevo") >= 0 || g.indexOf("recent") >= 0) score += 80;
+        return score;
+    }
+
 
     private void updateHero() {
         if (heroTitle == null) return;
