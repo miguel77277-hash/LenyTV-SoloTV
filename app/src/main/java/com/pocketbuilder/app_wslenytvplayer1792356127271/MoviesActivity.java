@@ -150,15 +150,15 @@ public final class MoviesActivity extends Activity {
             CatalogStore.seedPresets(this);
             CatalogStore.seedDefaultVod(this);
             buildUi();
-            // Solo pestañas; la lista elegida se descarga al tocarla (menos lag)
+            // Solo Estrenos al entrar; el resto al tocar su pestaña
             main.post(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         CatalogStore.seedDefaultVod(MoviesActivity.this);
+                        selectedRepo = "Estrenos";
                         rebuildListChips();
-                        // Cargar solo la primera pestaña (Estrenos 2026)
-                        loadSelectedRepoOnly(true);
+                        loadSelectedRepoOnly(false); // usa caché; descarga solo si está vacío
                     } catch (Throwable ignored) {
                     }
                 }
@@ -184,8 +184,9 @@ public final class MoviesActivity extends Activity {
         // Al volver de ENLACES o de LISTAS XTREAM hay que releer lo que se guardó
         // mientras tanto.
         if (grid != null) {
-            reloadLocal();
-            refreshStaleRepos();
+            // No refrescar todas las listas al volver (evita lag y descargas en cadena)
+            selectedRepo = selectedRepo.length() == 0 ? "Estrenos" : selectedRepo;
+            loadSelectedRepoOnly(false);
         }
         try {
             Immersion.keepHidden(this);
@@ -820,6 +821,20 @@ public final class MoviesActivity extends Activity {
                 TextView name = Ui.text(this, repoTitle + " · " + repo.itemCount, 11f, 0xFFE8EEF8, false);
                 line.addView(name, new LinearLayout.LayoutParams(0,
                         LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                final boolean en = repo.enabled;
+                TextView toggle = Ui.text(this, en ? "On" : "Off", 11f,
+                        en ? 0xFF00D4FF : 0xFF8899AA, true);
+                toggle.setPadding(dpi(8), dpi(6), dpi(8), dpi(6));
+                toggle.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        CatalogStore.setEnabled(MoviesActivity.this, repo.id, !en);
+                        dialog.dismiss();
+                        rebuildListChips();
+                        showToolsPanel();
+                    }
+                });
+                line.addView(toggle);
                 TextView del = Ui.text(this, "Quitar", 11f, 0xFFFF8899, true);
                 del.setPadding(dpi(10), dpi(6), dpi(10), dpi(6));
                 del.setOnClickListener(new View.OnClickListener() {
@@ -827,7 +842,10 @@ public final class MoviesActivity extends Activity {
                     public void onClick(View v) {
                         CatalogStore.remove(MoviesActivity.this, repo.id);
                         dialog.dismiss();
-                        reloadLocal();
+                        if (selectedRepo.equals(repo.title())) {
+                            selectedRepo = "Estrenos";
+                        }
+                        loadSelectedRepoOnly(false);
                         rebuildListChips();
                         toast("Fuente eliminada");
                         showToolsPanel();
@@ -1398,16 +1416,8 @@ public final class MoviesActivity extends Activity {
             final CatalogStore.Repo repo = ordered.get(i);
             final String key = repo.title();
             boolean on = key.equals(selectedRepo);
-            int count = 0;
-            for (int j = 0; j < allItems.size(); j++) {
-                if (allItems.get(j) != null && key.equals(allItems.get(j).repoName)) {
-                    count++;
-                }
-            }
-            if (count == 0) count = repo.itemCount;
             String label = key;
-            if (label.length() > 18) label = label.substring(0, 16) + "…";
-            label = label + " (" + count + ")";
+            if (label.length() > 22) label = label.substring(0, 20) + "…";
             TextView chip = Ui.text(this, label, 11f, on ? 0xFF001018 : 0xFFE8EEF8, true);
             chip.setPadding(dpi(12), dpi(8), dpi(12), dpi(8));
             chip.setBackground(rounded(on ? CYAN : 0xFF1A2230, 16f));
@@ -1467,7 +1477,8 @@ public final class MoviesActivity extends Activity {
         } catch (Throwable ignored) {
         }
         applyFilter();
-        if (forceDownload || !target.hasItems() || target.itemCount <= 0 || target.stale()) {
+        // Solo descargar si no hay caché (o el usuario fuerza). No bajar otras listas.
+        if (forceDownload || !target.hasItems() || target.itemCount <= 0) {
             refreshRepo(target, false);
         }
     }
@@ -1709,16 +1720,8 @@ public final class MoviesActivity extends Activity {
 
     /** Vuelve a descargar las fuentes guardadas que están viejas. */
     private void refreshStaleRepos() {
-        if (autoRefreshDone) return;
+        // Desactivado a propósito: solo se descarga la pestaña que el usuario elige.
         autoRefreshDone = true;
-        ArrayList<CatalogStore.Repo> repos = CatalogStore.list(this);
-        for (int i = 0; i < repos.size(); i++) {
-            CatalogStore.Repo repo = repos.get(i);
-            if (repo == null || !repo.enabled || repo.needsUrl()) continue;
-            if (repo.stale() || !repo.hasItems()) {
-                refreshRepo(repo, false);
-            }
-        }
     }
 
     private void refreshAllRepos() {

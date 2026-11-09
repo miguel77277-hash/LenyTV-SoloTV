@@ -206,6 +206,32 @@ final class CatalogStore {
         return context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    private static final String KEY_REMOVED_VOD = "removed_vod_urls";
+
+    private static boolean isRemovedUrl(Context context, String url) {
+        if (url == null || url.length() == 0) return false;
+        String raw = prefs(context).getString(KEY_REMOVED_VOD, "");
+        if (raw == null || raw.length() == 0) return false;
+        String[] lines = raw.split("\n");
+        String target = url.trim();
+        for (int i = 0; i < lines.length; i++) {
+            if (target.equalsIgnoreCase(lines[i].trim())) return true;
+        }
+        return false;
+    }
+
+    private static void markRemovedUrl(Context context, String url) {
+        if (url == null || url.trim().length() == 0) return;
+        if (isRemovedUrl(context, url)) return;
+        SharedPreferences p = prefs(context);
+        String raw = p.getString(KEY_REMOVED_VOD, "");
+        if (raw == null) raw = "";
+        if (raw.length() > 0) raw = raw + "\n";
+        raw = raw + url.trim();
+        p.edit().putString(KEY_REMOVED_VOD, raw).apply();
+    }
+
+
     static Repo find(Context context, String id) {
         ArrayList<Repo> repos = list(context);
         for (int i = 0; i < repos.size(); i++) {
@@ -343,7 +369,15 @@ final class CatalogStore {
     static void remove(Context context, String id) {
         ArrayList<Repo> repos = list(context);
         for (int i = repos.size() - 1; i >= 0; i--) {
-            if (repos.get(i).id.equals(id)) repos.remove(i);
+            Repo r = repos.get(i);
+            if (r != null && r.id.equals(id)) {
+                if (r.url != null && r.url.length() > 0) markRemovedUrl(context, r.url);
+                // También marcar get.php reconstruido si era xtream
+                if (r.isXtream() && r.server != null && r.user != null) {
+                    markRemovedUrl(context, r.server);
+                }
+                repos.remove(i);
+            }
         }
         save(context, repos);
     }
@@ -457,11 +491,15 @@ final class CatalogStore {
                     }
                 }
                 if (found == null) {
+                    if (isRemovedUrl(context, url)) {
+                        continue; // el usuario la quitó: no volver a crear
+                    }
                     Repo repo = new Repo();
                     repo.url = url;
                     repo.id = "v" + Long.toString(System.currentTimeMillis() + u, 36);
                     repo.name = name;
-                    repo.enabled = true;
+                    // Solo Estrenos activo por defecto; el resto se activa al tocar o en ajustes
+                    repo.enabled = "Estrenos".equals(name);
                     repo.kind = KIND_JSON;
                     all.add(repo);
                     found = repo;
